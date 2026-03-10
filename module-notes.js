@@ -23,6 +23,7 @@ function NotesModule({meta}){
   const [newTravelForm,setNewTravelForm]=useState({name:'',template:'mare'});
   const [showGroupModal,setShowGroupModal]=useState(false);
   const [newGroupName,setNewGroupName]=useState('');
+  const [newGroupColor,setNewGroupColor]=useState(NOTE_GROUP_COLORS[0]);
   const [customTravelItem,setCustomTravelItem]=useState('');
 
 
@@ -58,9 +59,8 @@ function NotesModule({meta}){
   function saveNoteGroups(g){setNoteGroups(g);LS.set('ms_note_groups',g);}
   function addNoteGroup(){
     if(!newGroupName.trim()) return;
-    const c=NOTE_GROUP_COLORS[noteGroups.length%NOTE_GROUP_COLORS.length];
-    saveNoteGroups([...noteGroups,{id:uuid(),name:newGroupName.trim(),color:c}]);
-    setNewGroupName('');setShowGroupModal(false);
+    saveNoteGroups([...noteGroups,{id:uuid(),name:newGroupName.trim(),color:newGroupColor}]);
+    setNewGroupName('');setNewGroupColor(NOTE_GROUP_COLORS[0]);setShowGroupModal(false);
   }
   function deleteNoteGroup(id){
     saveNoteGroups(noteGroups.filter(g=>g.id!==id));
@@ -176,14 +176,7 @@ function NotesModule({meta}){
                 ))}
               </div>
             )}
-            <div className="note-colors">
-              {NOTE_COLORS.map(c=>(
-                <div key={c} className={`note-color-dot${editingNote.color===c?' sel':''}`}
-                  style={{background:c,width:22,height:22,borderRadius:'50%',cursor:'pointer'}}
-                  onClick={()=>setEditingNote(n=>({...n,color:c}))}/>
-              ))}
-              <div style={{marginLeft:'auto',fontSize:11,color:'var(--muted)',fontFamily:"'Jost',sans-serif",letterSpacing:'0.06em',textTransform:'uppercase',alignSelf:'center'}}>Tag</div>
-            </div>
+
           </div>
         </div>
       </div>
@@ -375,7 +368,7 @@ function NotesModule({meta}){
                     return(
                       <div key={n.id} className={`note-card${n.pinned?' pinned':''}`} onClick={()=>openNote(n)}>
                         {n.pinned&&<div className="note-card-pin"><Icon name='pin' size={12} color={meta.color}/></div>}
-                        <div className="note-card-tag" style={{background:n.color}}/>
+
                         <div className="note-card-title">{n.title||'Senza titolo'}</div>
                         <div className="note-card-preview">{n.content}</div>
                         {grp&&<div className="note-card-group" style={{color:grp.color}}>● {grp.name}</div>}
@@ -454,9 +447,18 @@ function NotesModule({meta}){
                     value={newGroupName} onChange={e=>setNewGroupName(e.target.value)}
                     onKeyDown={e=>e.key==='Enter'&&addNoteGroup()}/>
                 </div>
+                <div className="m-row" style={{display:'flex',gap:10,alignItems:'center',paddingTop:4}}>
+                  {NOTE_GROUP_COLORS.map(c=>(
+                    <div key={c} onClick={()=>setNewGroupColor(c)}
+                      style={{width:24,height:24,borderRadius:'50%',background:c,cursor:'pointer',
+                        border: newGroupColor===c ? '2px solid var(--text)' : '2px solid transparent',
+                        boxShadow: newGroupColor===c ? `0 0 6px ${c}88` : 'none',
+                        flexShrink:0, transition:'border .15s,box-shadow .15s'}}/>
+                  ))}
+                </div>
                 <div className="m-acts">
                   <button className="m-cancel" onClick={()=>setShowGroupModal(false)}>Annulla</button>
-                  <button className="m-save" onClick={addNoteGroup}>Crea gruppo</button>
+                  <button className="m-save" style={{background:newGroupColor}} onClick={addNoteGroup}>Crea gruppo</button>
                 </div>
               </div>
             </div>

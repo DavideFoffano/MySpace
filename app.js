@@ -17,7 +17,7 @@ function App(){
   const meta=MODULE_META[currentModule];
 
   return(
-    <div className="app" style={MODULE_THEME[currentModule]||{}}>
+    <div className={`app${currentModule==='gym'?' gym-mode':''}${currentModule==='notes'?' notes-mode':''}${currentModule==='todo'?' todo-mode':''}${currentModule==='expenses'?' expenses-mode':''}`} style={MODULE_THEME[currentModule]||{}}>
       <div className="module-body">
         {currentModule==='gym'    && <WorkoutModule  meta={meta}/>}
         {currentModule==='todo'   && <TodoModule     meta={meta}/>}

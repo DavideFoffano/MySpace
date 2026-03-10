@@ -5,17 +5,17 @@ const {useState,useEffect,useRef,useCallback,useMemo} = React;
 ═══════════════════════════════════════════ */
 const MODULE_META = {
   todo:     { label:'To-Do',   icon:'todo',     color:'#6aadcf', bg:'#161614', border:'#252521', surface:'#111110' },
-  gym:      { label:'Workout', icon:'gym',      color:'#d4943a', bg:'#161614', border:'#252521', surface:'#111110' },
+  gym:      { label:'Workout', icon:'gym',      color:'#d4943a', bg:'#1a1208', border:'#2e1e08', surface:'#120d05' },
   expenses: { label:'Spese',   icon:'expenses', color:'#7aba7a', bg:'#161614', border:'#252521', surface:'#111110' },
-  notes:    { label:'Note',    icon:'notes',    color:'#d4c9a8', bg:'#161614', border:'#252521', surface:'#111110' },
+  notes:    { label:'Note',    icon:'notes',    color:'#d4c9a8', bg:'#1a1810', border:'#2e2c1e', surface:'#120f08' },
 };
 
 // Per-module CSS variable overrides — subtle tint of each accent on bg/surface/border
 const MODULE_THEME = {
   todo:     { '--bg':'#111110', '--surface':'#161614', '--surface2':'#1e1e1b', '--border':'#252521', '--border2':'#2e2e2a' },
-  gym:      { '--bg':'#111110', '--surface':'#161614', '--surface2':'#1e1e1b', '--border':'#252521', '--border2':'#2e2e2a' },
+  gym:      { '--bg':'#161614', '--surface':'#1e1e1b', '--surface2':'#252521', '--border':'#35342f', '--border2':'#3f3e38' },
   expenses: { '--bg':'#111110', '--surface':'#161614', '--surface2':'#1e1e1b', '--border':'#252521', '--border2':'#2e2e2a' },
-  notes:    { '--bg':'#111110', '--surface':'#161614', '--surface2':'#1e1e1b', '--border':'#252521', '--border2':'#2e2e2a' },
+  notes:    { '--bg':'#161614', '--surface':'#1e1e1b', '--surface2':'#252521', '--border':'#35342f', '--border2':'#3f3e38' },
 };
 
 
@@ -133,7 +133,7 @@ const WORKOUTS_DEFAULT = [
   ]},
 ];
 
-const WORKOUT_COLORS = ['#d4943a','#c47c28','#e8a845','#b8722a','#dba042','#c88630','#e0b060','#a86820'];
+const WORKOUT_COLORS = ['#d4943a','#b8732a','#c89030','#8a7055','#706050','#a08060','#c4a060','#907060'];
 
 /* ═══════════════════════════════════════════
    CALISTENIA SKILL TREE
@@ -153,7 +153,7 @@ const CALI_SKILLS = [
   },
   {
     id:'planche', name:'Planche', emoji:'⚡',
-    color:'#c47c28', desc:'Elemento di spinta in equilibrio orizzontale',
+    color:'#d4943a', desc:'Elemento di spinta in equilibrio orizzontale',
     steps:[
       {id:'pl_1', name:'Planche lean',        desc:'Plank sulle mani con spalle ben avanti rispetto ai polsi. Tieni 20 secondi.',          tag:'20s hold',   prereqs:[]},
       {id:'pl_2', name:'Tuck planche',        desc:'Corpo sollevato con ginocchia al petto, schiena parallela. 5 secondi.',                tag:'5s hold',    prereqs:['pl_1']},
@@ -165,7 +165,7 @@ const CALI_SKILLS = [
   },
   {
     id:'muscle_up', name:'Muscle-Up', emoji:'💪',
-    color:'#e8a845', desc:'Transizione esplosiva dalla sbarra ai paralleli',
+    color:'#d4943a', desc:'Transizione esplosiva dalla sbarra ai paralleli',
     steps:[
       {id:'mu_1', name:'Pull-up solido',      desc:'10 pull-up puliti con ROM completo, grip prono. Nessuno slancio.',                     tag:'10 reps',    prereqs:[]},
       {id:'mu_2', name:'Dip solido',          desc:'15 dip alle parallele con ROM completo. Base di spinta necessaria.',                   tag:'15 reps',    prereqs:['mu_1']},
@@ -177,7 +177,7 @@ const CALI_SKILLS = [
   },
   {
     id:'handstand', name:'Handstand', emoji:'🤸',
-    color:'#b8722a', desc:'Verticale libera sulle mani',
+    color:'#d4943a', desc:'Verticale libera sulle mani',
     steps:[
       {id:'hs_1', name:'Pike hold',           desc:'Triangolo con la testa a terra, gambe tese. Carica progressiva su spalle e polsi.',    tag:'15s hold',   prereqs:[]},
       {id:'hs_2', name:'Wall handstand',      desc:'Verticale con pancia al muro. Spalle attivate, corpo in linea. 20 secondi.',           tag:'20s hold',   prereqs:['hs_1']},
