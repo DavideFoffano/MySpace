@@ -25,6 +25,8 @@ function NotesModule({meta}){
   const [newGroupName,setNewGroupName]=useState('');
   const [newGroupColor,setNewGroupColor]=useState(NOTE_GROUP_COLORS[0]);
   const [customTravelItem,setCustomTravelItem]=useState('');
+  const [noteEditorDark,setNoteEditorDark]=useState(()=>LS.get('ms_note_editor_dark')||false);
+  function toggleEditorTheme(){const v=!noteEditorDark;setNoteEditorDark(v);LS.set('ms_note_editor_dark',v);}
 
 
   /* ── Notes functions ── */
@@ -145,8 +147,8 @@ function NotesModule({meta}){
   if(editingNote){
     return(
       <div className="app">
-        <div className="note-editor">
-          <div className="note-editor-hdr">
+        <div className="note-editor" style={{background:noteEditorDark?'#111110':'#e8dfc8',backgroundImage:noteEditorDark?`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)' opacity='0.07'/%3E%3C/svg%3E")`:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='256' height='256' filter='url(%23n)' opacity='0.10'/%3E%3C/svg%3E")`}}>
+          <div className="note-editor-hdr" style={{background:noteEditorDark?'rgba(17,17,16,0.9)':' rgba(220,200,160,0.25)',borderBottom:noteEditorDark?'1px solid #252521':'1px solid rgba(160,130,90,0.3)'}}>
             <button className="back" onClick={()=>setEditingNote(null)}><Icon name="back_arr" size={16}/></button>
             <div style={{flex:1,fontFamily:"'Jost',sans-serif",fontSize:14,fontWeight:400,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--muted)'}}>
               {editingNote.id?'Modifica nota':'Nuova nota'}
@@ -156,14 +158,14 @@ function NotesModule({meta}){
               {editingNote.id&&<button className="note-editor-btn" onClick={()=>{togglePin(editingNote.id);setEditingNote(n=>({...n,pinned:!n.pinned}));}}>
                 {editingNote.pinned?'📌':'📍'}
               </button>}
-              <button className="note-editor-btn note-save-btn" style={{background:meta.color}} onClick={saveNote}>Salva</button>
+              <button className="note-editor-btn" onClick={toggleEditorTheme} title="Cambia tema" style={{fontSize:'16px',padding:'4px 10px'}}>{noteEditorDark?'☀':'🌙'}</button><button className="note-editor-btn note-save-btn" style={{background:meta.color}} onClick={saveNote}>Salva</button>
             </div>
           </div>
-          <input className="note-title-inp" placeholder="TITOLO..." value={editingNote.title}
+          <input className="note-title-inp" placeholder="TITOLO..." style={{color:noteEditorDark?'#e8e6df':'#2e1f0a'}} value={editingNote.title}
             onChange={e=>setEditingNote(n=>({...n,title:e.target.value}))}/>
-          <textarea className="note-body-inp" placeholder="Scrivi qualcosa..." value={editingNote.content}
+          <textarea className="note-body-inp" placeholder="Scrivi qualcosa..." style={{color:noteEditorDark?'#c8c5bd':'#3a2810'}} value={editingNote.content}
             onChange={e=>setEditingNote(n=>({...n,content:e.target.value}))}/>
-          <div className="note-bottom-bar">
+          <div className="note-bottom-bar" style={{background:noteEditorDark?'#161614':'var(--surface)',borderTop:noteEditorDark?'1px solid #252521':'1px solid var(--border)'}}>
             {noteGroups.length>0&&(
               <div className="note-group-sel">
                 <div className={`ngs-pill${!editingNote.group?' sel':''}`} onClick={()=>setEditingNote(n=>({...n,group:null}))}>Nessun gruppo</div>
