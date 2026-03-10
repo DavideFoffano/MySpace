@@ -1545,36 +1545,37 @@ function WorkoutModule({meta}){
               )}
             </div>}
 
-          </div>
-        </>}
-      {showCreateWorkout&&(
-        <div className="modal-bg" onClick={()=>setShowCreateWorkout(false)}>
-          <div className="modal" onClick={e=>e.stopPropagation()}>
-            <div className="m-title">Nuova scheda</div>
-            <div className="m-row"><div className="m-lbl">Nome</div>
-              <input className="m-inp m-inp-text" placeholder="Es. Petto/Tricipiti" value={newWorkoutForm.name}
-                onChange={e=>setNewWorkoutForm(f=>({...f,name:e.target.value}))}/>
-            </div>
-            <div className="m-row"><div className="m-lbl">Sottotitolo</div>
-              <input className="m-inp m-inp-text" placeholder="Es. Petto · Tricipiti · Spalle" value={newWorkoutForm.subtitle}
-                onChange={e=>setNewWorkoutForm(f=>({...f,subtitle:e.target.value}))}/>
-            </div>
-            <div className="m-lbl" style={{marginBottom:8}}>Colore</div>
-            <div className="color-picker" style={{marginBottom:16}}>
-              {WORKOUT_COLORS.map(c=>(
-                <div key={c} className={`color-dot${newWorkoutForm.color===c?' sel':''}`}
-                  style={{background:c}} onClick={()=>setNewWorkoutForm(f=>({...f,color:c}))}/>
-              ))}
-            </div>
-            <div className="m-acts">
-              <button className="m-cancel" onClick={()=>setShowCreateWorkout(false)}>Annulla</button>
-              <button className="m-save" onClick={createWorkout}>Crea scheda</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+            {/* Fine delle varie viste (Settings/Cali) */}
+          </div> 
 
-    </>
-  );
+        {showCreateWorkout && (
+          <div className="modal-bg" onClick={() => setShowCreateWorkout(false)}>
+            <div className="modal" onClick={e => e.stopPropagation()}>
+              <div className="m-title">Nuova scheda</div>
+              <div className="m-row">
+                <div className="m-lbl">Nome</div>
+                <input className="m-inp m-inp-text" placeholder="Es. Petto/Tricipiti" value={newWorkoutForm.name}
+                  onChange={e => setNewWorkoutForm(f => ({ ...f, name: e.target.value }))} />
+              </div>
+              <div className="m-row">
+                <div className="m-lbl">Sottotitolo</div>
+                <input className="m-inp m-inp-text" placeholder="Es. Petto · Tricipiti · Spalle" value={newWorkoutForm.subtitle}
+                  onChange={e => setNewWorkoutForm(f => ({ ...f, subtitle: e.target.value }))} />
+              </div>
+              <div className="m-lbl" style={{ marginBottom: 8 }}>Colore</div>
+              <div className="color-picker" style={{ marginBottom: 16 }}>
+                {WORKOUT_COLORS.map(c => (
+                  <div key={c} className={`color-dot${newWorkoutForm.color === c ? ' sel' : ''}`}
+                    style={{ background: c }} onClick={() => setNewWorkoutForm(f => ({ ...f, color: c }))} />
+                ))}
+              </div>
+              <div className="m-acts">
+                <button className="m-cancel" onClick={() => setShowCreateWorkout(false)}>Annulla</button>
+                <button className="m-save" onClick={createWorkout}>Crea scheda</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </>
+    );
 }

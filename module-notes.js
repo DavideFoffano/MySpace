@@ -135,8 +135,8 @@ function NotesModule({meta}){
 
   const activeShoppingList=shoppingLists.find(l=>l.id===activeShoppingId);
   const activeTravelList=travelLists.find(l=>l.id===activeTravelId);
-  const isViewingShopping=currentModule==='notes'&&notesSection==='shopping'&&activeShoppingId&&activeShoppingList;
-  const isViewingTravel=currentModule==='notes'&&notesSection==='travel'&&activeTravelId&&activeTravelList;
+  const isViewingShopping=notesSection==='shopping'&&activeShoppingId&&activeShoppingList;
+  const isViewingTravel=notesSection==='travel'&&activeTravelId&&activeTravelList;
 
 
 
@@ -508,7 +508,6 @@ function NotesModule({meta}){
               </div>
             </div>
           )}
-        </>}
     </>
   );
 }

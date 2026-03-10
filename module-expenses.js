@@ -77,11 +77,9 @@ function ExpensesModule({meta}){
                     </div>
                     <div className="exp-item-del" onClick={()=>deleteExpense(e.id)}><Icon name='close' size={12}/></div>
                   </div>
-                );
-              })}
+              );})}
             </div>
           </div>
-        </>}
     </>
   );
 }
