@@ -714,6 +714,20 @@ input[type=number]{-moz-appearance:textfield}
     letter-spacing:0.14em;
     box-shadow:0 0 10px rgba(122,186,122,0.2);
   }
+  .expenses-mode .sub-nav{
+    background:linear-gradient(180deg,#1e1e1b,#191917);
+    border-bottom:1px solid #2e2d28;
+    box-shadow:inset 0 -1px 0 rgba(255,255,255,0.03);
+  }
+  .expenses-mode .sn-btn{
+    background:linear-gradient(145deg,#1e2220,#191d1b);
+    border:1px solid #2e3530;
+  }
+  .expenses-mode .sn-btn.act{
+    background:linear-gradient(145deg,#0e1e14,#091410);
+    border-color:#7aba7a;
+    box-shadow:0 0 8px rgba(122,186,122,0.25);
+  }
   .expenses-mode .module-nav{
     background:linear-gradient(180deg,#1a1a17,#141412);
     border-top:2px solid #2e2d28;
