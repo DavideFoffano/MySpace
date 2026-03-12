@@ -653,9 +653,9 @@ function CalendarSection(){
     return curDate.toLocaleDateString('it',{weekday:'long',day:'numeric',month:'long'});
   }
 
-  function eventsOnDay(d){ return events.filter(e=>{ const s=(e.start && e.start.date)||(e.start && e.start.date)Time;if(!s)return false;return sameDay(new Date(s),d); }); }
+  function eventsOnDay(d){ return events.filter(function(e){ var s=(e.start&&e.start.date)||(e.start&&e.start.dateTime);if(!s)return false;return sameDay(new Date(s),d); }); }
   function evtColor(e){ const c=['#6aadcf','#7aba7a','#d4943a','#c96a6a','#9a7aba','#d4c9a8'];return c[(e.id||'').length%c.length]; }
-  function evtTime(e){ if((e.start && e.start.date))return'Tutto il giorno';if((e.start && e.start.date)Time){const t=new Date(e.start.dateTime);return t.toLocaleTimeString('it',{hour:'2-digit',minute:'2-digit'});}return''; }
+  function evtTime(e){ if(e.start&&e.start.date)return'Tutto il giorno';if(e.start&&e.start.dateTime){var t=new Date(e.start.dateTime);return t.toLocaleTimeString('it',{hour:'2-digit',minute:'2-digit'});}return''; }
 
   // EventsList is now a standalone component above
 
