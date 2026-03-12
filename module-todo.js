@@ -184,7 +184,7 @@ function KanbanColumn({status,tasks,onTaskClick,onReorder}){
   function onTouchStart(e,i){ touchRef.current=i;setDragIdx(i); }
   function onTouchMove(e){
     const y=e.touches[0].clientY;
-    const cards=bodyRef.current?.querySelectorAll('.kanban-task');
+    const cards=bodyRef.current && bodyRef.current.querySelectorAll('.kanban-task');
     if(!cards)return;
     let target=touchRef.current;
     cards.forEach((c,i)=>{ const r=c.getBoundingClientRect();if(y>=r.top&&y<=r.bottom)target=i; });
@@ -322,7 +322,7 @@ function QuickAddBar({lists,activeListId,onAdd}){
     onAdd({text:text.trim(),priority:pri,listId,status,dueDate:dueDate||null});
     setText('');setPri(null);setDueDate('');setOpen(false);
   }
-  function openBar(){ setOpen(true); setTimeout(()=>inputRef.current?.focus(),80); }
+  function openBar(){ setOpen(true); setTimeout(()=>inputRef.current && inputRef.current.focus(),80); }
 
   if(!open) return(
     <div className="qa-bar collapsed" onClick={openBar}>
@@ -476,7 +476,35 @@ function TodoSection(){
 /* ══════════════════════════════════════════
    CALENDAR VIEWS (standalone components for Babel compatibility)
 ══════════════════════════════════════════ */
-function CalMonthView({curDate,selDate,eventsOnDay,evtColor,setSelDate,setCalView,setCurDate,EventsList}){
+function CalEventsList({day, eventsOnDay, evtColor, isConnected, loading, onOpenSettings}){
+  var evts = eventsOnDay(day);
+  if(!isConnected) return(
+    <div className="cal-connect-hint">
+      Connetti Google Calendar nelle <b onClick={onOpenSettings} style={{color:'var(--acc)',cursor:'pointer'}}>impostazioni</b>
+    </div>
+  );
+  if(loading) return <div className="cal-loading">Caricamento…</div>;
+  if(evts.length===0) return <div className="cal-no-events">Nessun evento</div>;
+  return(
+    <div className="cal-events-list">
+      {evts.map(function(e){
+        var startDate = e.start ? e.start.date : null;
+        var startDT   = e.start ? e.start.dateTime : null;
+        var timeStr   = startDate ? 'Tutto il giorno' : (startDT ? new Date(startDT).toLocaleTimeString('it',{hour:'2-digit',minute:'2-digit'}) : '');
+        var color     = evtColor(e);
+        return(
+          <div key={e.id} className="cal-event-card" style={{borderLeftColor:color}}>
+            <div className="cal-evt-time">{timeStr}</div>
+            <div className="cal-evt-title">{e.summary}</div>
+            {e.description ? <div className="cal-evt-desc">{e.description}</div> : null}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function CalMonthView({curDate,selDate,eventsOnDay,evtColor,setSelDate,setCalView,setCurDate,isConnected,loading,onOpenSettings}){
   const year=curDate.getFullYear(),month=curDate.getMonth();
   const firstDay=new Date(year,month,1),offset=firstDay.getDay()===0?6:firstDay.getDay()-1;
   const dim=new Date(year,month+1,0).getDate();
@@ -504,7 +532,7 @@ function CalMonthView({curDate,selDate,eventsOnDay,evtColor,setSelDate,setCalVie
       </div>
       <div className="cal-day-preview">
         <div className="cal-preview-title">{selDate.toLocaleDateString('it',{weekday:'long',day:'numeric',month:'long'})}</div>
-        <EventsList day={selDate}/>
+        <CalEventsList day={selDate} eventsOnDay={eventsOnDay} evtColor={evtColor} isConnected={isConnected} loading={loading} onOpenSettings={onOpenSettings}/>
       </div>
     </div>
   );
@@ -527,7 +555,7 @@ function CalWeekView({curDate,selDate,eventsOnDay,evtColor,setSelDate,setCalView
                 {evts.slice(0,3).map((e,j)=>(
                   <div key={j} className="cal-week-pill"
                     style={{background:evtColor(e)+'28',borderLeft:'2px solid '+evtColor(e)}}>
-                    {e.summary?e.summary.slice(0,12):''}
+                    {(e.summary ? e.summary.slice(0,12) : '')}
                   </div>
                 ))}
                 {evts.length>3&&<div className="cal-week-more">+{evts.length-3}</div>}
@@ -625,17 +653,11 @@ function CalendarSection(){
     return curDate.toLocaleDateString('it',{weekday:'long',day:'numeric',month:'long'});
   }
 
-  function eventsOnDay(d){ return events.filter(e=>{ const s=e.start?.date||e.start?.dateTime;if(!s)return false;return sameDay(new Date(s),d); }); }
+  function eventsOnDay(d){ return events.filter(e=>{ const s=(e.start && e.start.date)||(e.start && e.start.date)Time;if(!s)return false;return sameDay(new Date(s),d); }); }
   function evtColor(e){ const c=['#6aadcf','#7aba7a','#d4943a','#c96a6a','#9a7aba','#d4c9a8'];return c[(e.id||'').length%c.length]; }
-  function evtTime(e){ if(e.start?.date)return'Tutto il giorno';if(e.start?.dateTime){const t=new Date(e.start.dateTime);return t.toLocaleTimeString('it',{hour:'2-digit',minute:'2-digit'});}return''; }
+  function evtTime(e){ if((e.start && e.start.date))return'Tutto il giorno';if((e.start && e.start.date)Time){const t=new Date(e.start.dateTime);return t.toLocaleTimeString('it',{hour:'2-digit',minute:'2-digit'});}return''; }
 
-  function EventsList({day}){
-    const evts=eventsOnDay(day);
-    if(!isConnected)return<div className="cal-connect-hint">Connetti Google Calendar nelle <b onClick={()=>setShowSettings(true)} style={{color:'var(--acc)',cursor:'pointer'}}>impostazioni</b></div>;
-    if(loading)return<div className="cal-loading">Caricamento…</div>;
-    if(evts.length===0)return<div className="cal-no-events">Nessun evento</div>;
-    return(<div className="cal-events-list">{evts.map(e=><div key={e.id} className="cal-event-card" style={{borderLeftColor:evtColor(e)}}><div className="cal-evt-time">{evtTime(e)}</div><div className="cal-evt-title">{e.summary}</div>{e.description&&<div className="cal-evt-desc">{e.description}</div>}</div>)}</div>);
-  }
+  // EventsList is now a standalone component above
 
   if(showSettings)return(
     <div className="cal-settings">
@@ -675,9 +697,9 @@ function CalendarSection(){
       {!isConnected&&<div className="cal-not-connected"><span>📅</span><span>Connetti nelle <b onClick={()=>setShowSettings(true)} style={{color:'var(--acc)',cursor:'pointer'}}>impostazioni</b></span></div>}
       {saveMsg&&<div className="cal-save-msg">{saveMsg}</div>}
       {loading&&<div className="cal-loading-bar"/>}
-      {calView==='month'&&<CalMonthView curDate={curDate} selDate={selDate} eventsOnDay={eventsOnDay} evtColor={evtColor} setSelDate={setSelDate} setCalView={setCalView} setCurDate={setCurDate} EventsList={EventsList}/>}
+      {calView==='month'&&<CalMonthView curDate={curDate} selDate={selDate} eventsOnDay={eventsOnDay} evtColor={evtColor} setSelDate={setSelDate} setCalView={setCalView} setCurDate={setCurDate} isConnected={isConnected} loading={loading} onOpenSettings={()=>setShowSettings(true)}/>}
       {calView==='week' &&<CalWeekView  curDate={curDate} selDate={selDate} eventsOnDay={eventsOnDay} evtColor={evtColor} setSelDate={setSelDate} setCalView={setCalView} setCurDate={setCurDate}/>}
-      {calView==='day'  &&<div className="cal-day-view"><EventsList day={curDate}/></div>}
+      {calView==='day'  &&<div className="cal-day-view"><CalEventsList day={curDate} eventsOnDay={eventsOnDay} evtColor={evtColor} isConnected={isConnected} loading={loading} onOpenSettings={()=>setShowSettings(true)}/></div>}
 
       {showNewEvent&&(
         <div className="overlay" onClick={()=>setShowNewEvent(false)}>
