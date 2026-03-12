@@ -62,6 +62,9 @@ const PATHS = {
   back_arr:  "M19 12H5m0 0l7 7m-7-7l7-7",
   check_ic:  "M20 6L9 17l-5-5",
   plus_ic:   "M12 5v14M5 12h14",
+  nav_cal:   "M8 2v3M16 2v3M3 7h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z",
+  sort_pri:  "M3 6h18M7 12h10M11 18h2",
+  flag:      "M4 15V4M4 4l8 4-8 4",
 };
 
 function Icon({name, size=20, color='currentColor', sw=1.5, style={}}) {
@@ -261,12 +264,26 @@ const COMMON_EXERCISES = [
 ];
 
 const EXPENSE_CATS = [
-  {id:'cibo',    name:'Cibo',       icon:'cat_food',  color:'#c97a4a'},
-  {id:'sport',   name:'Sport',      icon:'cat_sport', color:'#a8c26b'},
-  {id:'trasporti',name:'Trasporti', icon:'cat_car',   color:'#6dbb8a'},
-  {id:'svago',   name:'Svago',      icon:'cat_fun',   color:'#9b8fc2'},
-  {id:'casa',    name:'Casa',       icon:'cat_house', color:'#d4a84b'},
-  {id:'altro',   name:'Altro',      icon:'cat_other', color:'#7b8a7a'},
+  {id:'alimentari', name:'Alimentari',      emoji:'🛒', color:'#6aadcf'},
+  {id:'casa',       name:'Casa',            emoji:'🏠', color:'#d4a84b'},
+  {id:'trasporti',  name:'Trasporti',       emoji:'🚌', color:'#6dbb8a'},
+  {id:'svago',      name:'Svago',           emoji:'🎮', color:'#9b8fc2'},
+  {id:'salute',     name:'Salute',          emoji:'❤️', color:'#e07070'},
+  {id:'caffe',      name:'Caffè',           emoji:'☕', color:'#c97a4a'},
+  {id:'istruzione', name:'Istruzione',      emoji:'🎓', color:'#d4943a'},
+  {id:'regali',     name:'Regali',          emoji:'🎁', color:'#c06090'},
+  {id:'famiglia',   name:'Famiglia',        emoji:'👨‍👩‍👧', color:'#e07858'},
+  {id:'sport',      name:'Attività fisica', emoji:'💪', color:'#7aba7a'},
+  {id:'cibo',       name:'Ristoranti',      emoji:'🍕', color:'#c97a4a'},
+  {id:'altro',      name:'Altro',           emoji:'📌', color:'#7b8a7a'},
+];
+
+const INCOME_CATS = [
+  {id:'stipendio', name:'Stipendio', emoji:'💼', color:'#6aadcf'},
+  {id:'regalo',    name:'Regalo',    emoji:'🎁', color:'#d4943a'},
+  {id:'interessi', name:'Interessi', emoji:'🏦', color:'#a8c26b'},
+  {id:'rimborso',  name:'Rimborso',  emoji:'↩️', color:'#9b8fc2'},
+  {id:'altro_in',  name:'Altro',     emoji:'➕', color:'#7b8a7a'},
 ];
 
 /* ═══════════════════════════════════════════

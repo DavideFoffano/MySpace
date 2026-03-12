@@ -14,6 +14,101 @@ const EXP_DEFAULT_ACCOUNTS = [
 
 const EXP_ACC_COLORS = ['#6aadcf','#d4943a','#7aba7a','#d4c9a8','#9b8ec4','#e07070','#c0a070','#70c0a0'];
 
+const EXP_CAT_COLORS = [
+  '#c97a4a','#a8c26b','#6dbb8a','#9b8fc2','#d4a84b','#7b8a7a',
+  '#6aadcf','#d4943a','#7aba7a','#e07070','#c0a070','#70c0a0',
+  '#9b8ec4','#d4c9a8','#c96a6a','#6ab8a0',
+];
+
+/* ════════════════════════════════════════
+   MODAL: Custom Category
+════════════════════════════════════════ */
+function ExpCatModal({cat, type, onSave, onDelete, onClose}){
+  const isNew = !cat.id;
+  const [name,  setName]  = useState(cat.name||'');
+  const [emoji, setEmoji] = useState(cat.emoji||'');
+  const [color, setColor] = useState(cat.color||EXP_CAT_COLORS[0]);
+
+  const QUICK_EMOJI = type==='expense'
+    ? ['🛒','🍕','🚗','💊','✂️','🎮','👗','📱','⚡','🏠','🐾','☕','📚','🎵','🧴','🏋️','🎁','✈️','🍷','🧾']
+    : ['💼','💰','🎁','🏦','↩️','📈','🏡','💎','🎓','🤝','💻','🛠️'];
+
+  function save(){
+    if(!name.trim()) return;
+    onSave({
+      id: cat.id||('custom_'+uuid()),
+      name: name.trim(),
+      emoji: emoji||'📌',
+      color,
+      custom: true,
+      type,
+    });
+  }
+
+  return (
+    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.78)',zIndex:210,display:'flex',alignItems:'flex-end'}}
+      onClick={e=>e.target===e.currentTarget&&onClose()}>
+      <div style={{background:'var(--surface)',borderRadius:'20px 20px 0 0',width:'100%',padding:24,paddingBottom:44,boxSizing:'border-box',maxHeight:'88vh',overflowY:'auto'}}>
+        <div style={{fontFamily:"'Jost',sans-serif",fontSize:17,fontWeight:700,color:'var(--text)',marginBottom:18}}>
+          {isNew?`Nuova categoria ${type==='expense'?'uscita':'entrata'}`:'Modifica categoria'}
+        </div>
+
+        <label style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:'var(--muted)'}}>Nome</label>
+        <input className="exp-note-inp" value={name} onChange={e=>setName(e.target.value)} placeholder="Es. Palestra, Abbonamenti…"
+          style={{width:'100%',boxSizing:'border-box',marginTop:6,marginBottom:14,color:'var(--text)'}}/>
+
+        <label style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:'var(--muted)'}}>Emoji</label>
+        <div style={{display:'flex',flexWrap:'wrap',gap:6,marginTop:8,marginBottom:14}}>
+          {QUICK_EMOJI.map(e=>(
+            <div key={e} onClick={()=>setEmoji(e)} style={{width:36,height:36,borderRadius:9,
+              background:emoji===e?color+'33':'var(--surface2)',
+              border:`1px solid ${emoji===e?color:'var(--border)'}`,
+              display:'flex',alignItems:'center',justifyContent:'center',
+              fontSize:18,cursor:'pointer',transition:'all .15s'}}>
+              {e}
+            </div>
+          ))}
+          <input value={emoji} onChange={e=>setEmoji(e.target.value)} placeholder="✏️"
+            style={{width:36,height:36,borderRadius:9,background:'var(--surface2)',
+            border:'1px solid var(--border2)',textAlign:'center',fontSize:18,
+            color:'var(--text)',outline:'none',boxSizing:'border-box'}}/>
+        </div>
+
+        <label style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:'var(--muted)'}}>Colore</label>
+        <div style={{display:'flex',gap:7,flexWrap:'wrap',marginTop:8,marginBottom:20}}>
+          {EXP_CAT_COLORS.map(c=>(
+            <div key={c} onClick={()=>setColor(c)} style={{width:28,height:28,borderRadius:'50%',background:c,
+              border:`2px solid ${color===c?'#fff':'transparent'}`,cursor:'pointer',transition:'border .15s'}}/>
+          ))}
+        </div>
+
+        {/* Preview */}
+        <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',
+          background:'var(--surface2)',borderRadius:12,marginBottom:20}}>
+          <div style={{width:40,height:40,borderRadius:13,background:color+'22',
+            border:`1.5px solid ${color}`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:20}}>
+            {emoji||'📌'}
+          </div>
+          <span style={{fontFamily:"'Jost',sans-serif",fontSize:14,color:'var(--text)'}}>{name||'Anteprima'}</span>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:isNew?'1fr':'1fr 1fr',gap:8,marginBottom:8}}>
+          {!isNew&&<button onClick={()=>onDelete(cat.id)} style={{padding:12,borderRadius:12,
+            border:'1px solid #e0707066',background:'#e0707018',color:'#e07070',
+            fontFamily:"'Jost',sans-serif",fontWeight:600,cursor:'pointer'}}>Elimina</button>}
+          <button onClick={save} style={{padding:12,borderRadius:12,border:'none',
+            background:color,color:'#0b0c09',fontFamily:"'Jost',sans-serif",fontWeight:700,cursor:'pointer'}}>
+            {isNew?'Crea categoria':'Salva'}
+          </button>
+        </div>
+        <button onClick={onClose} style={{width:'100%',padding:10,borderRadius:12,
+          border:'1px solid var(--border)',background:'transparent',color:'var(--muted)',
+          fontFamily:"'Jost',sans-serif",cursor:'pointer'}}>Annulla</button>
+      </div>
+    </div>
+  );
+}
+
 /* ── Helpers ── */
 function expNextDue(period, customDays, fromDate){
   const d = fromDate ? new Date(fromDate+'T12:00:00') : new Date();
@@ -117,10 +212,13 @@ function ExpRecurringModal({rec, accounts, onSave, onClose, ACC}){
         {/* Category */}
         <div style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)',marginBottom:8}}>Categoria</div>
         <div className="exp-cats" style={{marginBottom:12}}>
-          {EXPENSE_CATS.map(c=>(
+          {(type==='expense'?EXPENSE_CATS:[...INCOME_CATS]).map(c=>(
             <div key={c.id} className={`exp-cat${cat===c.id?' sel':''}`} onClick={()=>setCat(c.id)}>
               <div className="exp-cat-icon" style={cat===c.id?{borderColor:c.color,background:c.color+'20'}:{}}>
-                <Icon name={c.icon} size={18} color={cat===c.id?c.color:'var(--muted)'}/>
+                {c.emoji
+                  ? <span style={{fontSize:18}}>{c.emoji}</span>
+                  : <Icon name={c.icon} size={18} color={cat===c.id?c.color:'var(--muted)'}/>
+                }
               </div>
               <div className="exp-cat-name">{c.name}</div>
             </div>
@@ -154,10 +252,11 @@ function ExpRecurringModal({rec, accounts, onSave, onClose, ACC}){
 }
 
 /* ════════════════════════════════════════
-   TAB: Analisi (Budget + Grafici)
+/* ════════════════════════════════════════
+   COMPONENT: Grafici (charts only)
 ════════════════════════════════════════ */
-function ExpAnalisi({expenses, budgets, setBudgets, ACC}){
-  const [sec, setSec] = useState('grafici');
+function ExpGrafici({expenses, ACC, expCats}){
+  expCats = expCats||EXPENSE_CATS;
   const pieRef  = useRef(null);
   const barRef  = useRef(null);
   const pieInst = useRef(null);
@@ -188,13 +287,11 @@ function ExpAnalisi({expenses, budgets, setBudgets, ACC}){
   },[expenses]);
 
   useEffect(()=>{
-    if(sec!=='grafici') return;
     if(typeof Chart==='undefined') return;
     requestAnimationFrame(()=>{
-      // Pie
       if(pieRef.current){
         if(pieInst.current){ pieInst.current.destroy(); pieInst.current=null; }
-        const cats=EXPENSE_CATS.filter(c=>catTotals[c.id]);
+        const cats=expCats.filter(c=>catTotals[c.id]);
         if(cats.length>0){
           pieInst.current=new Chart(pieRef.current,{
             type:'doughnut',
@@ -203,7 +300,6 @@ function ExpAnalisi({expenses, budgets, setBudgets, ACC}){
           });
         }
       }
-      // Bar
       if(barRef.current){
         if(barInst.current){ barInst.current.destroy(); barInst.current=null; }
         barInst.current=new Chart(barRef.current,{
@@ -226,75 +322,21 @@ function ExpAnalisi({expenses, budgets, setBudgets, ACC}){
       if(pieInst.current){pieInst.current.destroy();pieInst.current=null;}
       if(barInst.current){barInst.current.destroy();barInst.current=null;}
     };
-  },[sec, catTotals, monthly6]);
-
-  function saveBudget(catId, val){
-    const next={...budgets,[catId]:parseFloat(val)||0};
-    setBudgets(next); LS.set('ms_expenses_budgets',next);
-  }
+  },[catTotals, monthly6]);
 
   return (
     <div className="pad anim">
-      {/* Inner nav */}
-      <div style={{display:'flex',gap:4,marginBottom:20,background:'var(--surface2)',borderRadius:12,padding:4}}>
-        {['grafici','budget'].map(s=>(
-          <button key={s} onClick={()=>setSec(s)} style={{flex:1,padding:'8px',borderRadius:9,border:'none',
-            background:sec===s?ACC:'transparent',color:sec===s?'#0b0c09':'var(--muted)',
-            fontFamily:"'Jost',sans-serif",fontSize:13,fontWeight:600,cursor:'pointer',transition:'all .2s',textTransform:'capitalize'}}>
-            {s==='budget'?'Budget':'Grafici'}
-          </button>
-        ))}
+      <div style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)',marginBottom:10}}>Spese per categoria — mese corrente</div>
+      <div style={{background:'var(--surface)',borderRadius:16,padding:16,marginBottom:20,border:'1px solid var(--border)',minHeight:180,display:'flex',alignItems:'center',justifyContent:'center'}}>
+        {Object.keys(catTotals).length===0
+          ? <div style={{color:'var(--faint)',fontFamily:"'Jost',sans-serif",fontSize:14}}>Nessuna uscita questo mese</div>
+          : <canvas ref={pieRef} style={{maxHeight:240}}/>
+        }
       </div>
-
-      {sec==='budget'&&(
-        <>
-          <div style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)',marginBottom:16}}>
-            Budget mensile · imposta un limite per categoria
-          </div>
-          {EXPENSE_CATS.map(cat=>{
-            const spent=catTotals[cat.id]||0;
-            const budget=budgets[cat.id]||0;
-            const pct=budget>0?Math.min(100,spent/budget*100):0;
-            const over=budget>0&&spent>budget;
-            return (
-              <div key={cat.id} style={{marginBottom:18}}>
-                <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                  <Icon name={cat.icon} size={15} color={cat.color}/>
-                  <div style={{flex:1,fontFamily:"'Jost',sans-serif",fontSize:14,color:'var(--text)'}}>{cat.name}</div>
-                  <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:over?'#e07070':'var(--muted)',minWidth:80,textAlign:'right'}}>
-                    €{spent.toFixed(0)}{budget>0?` / €${budget.toFixed(0)}`:''}
-                    {over&&' 🚨'}
-                  </div>
-                  <input type="number" placeholder="—" value={budgets[cat.id]||''} onChange={e=>saveBudget(cat.id,e.target.value)}
-                    style={{width:64,padding:'4px 8px',borderRadius:6,border:'1px solid var(--border2)',background:'var(--surface2)',
-                    color:'var(--text)',fontFamily:"'Jost',sans-serif",fontSize:12,textAlign:'right'}}/>
-                </div>
-                {budget>0&&(
-                  <div style={{height:5,borderRadius:3,background:'var(--faint)',overflow:'hidden'}}>
-                    <div style={{height:'100%',borderRadius:3,width:`${pct}%`,background:over?'#e07070':cat.color,transition:'width .4s'}}/>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </>
-      )}
-
-      {sec==='grafici'&&(
-        <>
-          <div style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)',marginBottom:10}}>Spese per categoria — mese corrente</div>
-          <div style={{background:'var(--surface)',borderRadius:16,padding:16,marginBottom:20,border:'1px solid var(--border)',minHeight:180,display:'flex',alignItems:'center',justifyContent:'center'}}>
-            {Object.keys(catTotals).length===0
-              ? <div style={{color:'var(--faint)',fontFamily:"'Jost',sans-serif",fontSize:14}}>Nessuna uscita questo mese</div>
-              : <canvas ref={pieRef} style={{maxHeight:240}}/>
-            }
-          </div>
-          <div style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)',marginBottom:10}}>Entrate & Uscite — ultimi 6 mesi</div>
-          <div style={{background:'var(--surface)',borderRadius:16,padding:16,border:'1px solid var(--border)'}}>
-            <canvas ref={barRef} style={{maxHeight:210}}/>
-          </div>
-        </>
-      )}
+      <div style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)',marginBottom:10}}>Entrate & Uscite — ultimi 6 mesi</div>
+      <div style={{background:'var(--surface)',borderRadius:16,padding:16,border:'1px solid var(--border)'}}>
+        <canvas ref={barRef} style={{maxHeight:210}}/>
+      </div>
     </div>
   );
 }
@@ -571,6 +613,11 @@ function ExpensesModule({meta}){
   const [budgets,   setBudgets]   = useState(()=>LS.get('ms_expenses_budgets')||{});
   const [investments, setInvestments] = useState(()=>LS.get('ms_expenses_investments')||[]);
   const [invTxns,   setInvTxns]   = useState(()=>LS.get('ms_expenses_inv_txns')||[]);
+  const [customCats, setCustomCats] = useState(()=>LS.get('ms_expenses_custom_cats')||{expense:[],income:[]});
+
+  /* ── Merged category lists ── */
+  const allExpCats = useMemo(()=>[...EXPENSE_CATS,...(customCats.expense||[])],[customCats]);
+  const allIncCats = useMemo(()=>[...INCOME_CATS,...(customCats.income||[])],[customCats]);
 
   /* ── Default account ── */
   const defaultAccId = useMemo(()=>{
@@ -598,6 +645,8 @@ function ExpensesModule({meta}){
   const [expandedAcc, setExpandedAcc] = useState(null);
   const [editingInv, setEditingInv] = useState(null);
   const [sellingInv, setSellingInv] = useState(null);
+  const [editingCat, setEditingCat] = useState(null); // {cat, type}
+  const [showRecurring, setShowRecurring] = useState(false);
 
   /* ── Storico filters ── */
   const [fltMonth, setFltMonth] = useState(()=>{const n=new Date();return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;});
@@ -668,7 +717,10 @@ function ExpensesModule({meta}){
   }).sort((a,b)=>new Date(b.date)-new Date(a.date)),[expenses,fltMonth,fltCat,fltAcc]);
 
   /* ── Helpers ── */
-  function catById(id){ return EXPENSE_CATS.find(c=>c.id===id)||EXPENSE_CATS[EXPENSE_CATS.length-1]; }
+  function catById(id){
+    return [...EXPENSE_CATS,...INCOME_CATS,...(customCats.expense||[]),...(customCats.income||[])].find(c=>c.id===id)
+      || EXPENSE_CATS[EXPENSE_CATS.length-1];
+  }
   function accById(id){ return accounts.find(a=>a.id===id); }
 
   /* ── Actions ── */
@@ -745,6 +797,23 @@ function ExpensesModule({meta}){
     setRecurring(next); LS.set('ms_expenses_recurring',next);
   }
 
+  function saveCustomCat(cat){
+    const t = cat.type; // 'expense' | 'income'
+    const list = customCats[t]||[];
+    const exists = list.find(c=>c.id===cat.id);
+    const newList = exists ? list.map(c=>c.id===cat.id?cat:c) : [...list,cat];
+    const next = {...customCats,[t]:newList};
+    setCustomCats(next); LS.set('ms_expenses_custom_cats',next);
+    setEditingCat(null);
+  }
+
+  function deleteCustomCat(id, type){
+    const newList = (customCats[type]||[]).filter(c=>c.id!==id);
+    const next = {...customCats,[type]:newList};
+    setCustomCats(next); LS.set('ms_expenses_custom_cats',next);
+    setEditingCat(null);
+  }
+
   function saveInvestment(inv){
     const exists = investments.find(i=>i.id===inv.id);
     const newInvs = exists ? investments.map(i=>i.id===inv.id?inv:i) : [inv,...investments];
@@ -789,16 +858,18 @@ function ExpensesModule({meta}){
     }
   }
 
-  /* ── Shared: expense row ── */
   function renderExpItem(e, compact=false){
     const cat    = catById(e.category);
     const isInc  = expKind(e)==='income';
     const acc    = accById(e.accountId);
     const border = compact ? {borderBottom:'1px solid var(--border2)'} : {};
+    const iconEl = cat.emoji
+      ? <span style={{fontSize:18}}>{cat.emoji}</span>
+      : <Icon name={cat.icon} size={18} color={cat.color}/>;
     return (
       <div className="exp-item" key={e.id} style={compact?{background:'transparent',borderRadius:0,padding:'10px 0',...border}:{}}>
         <div className="exp-item-icon" style={{background:cat.color+'20',flexShrink:0}}>
-          <Icon name={cat.icon} size={18} color={cat.color}/>
+          {iconEl}
         </div>
         <div className="exp-item-info">
           <div className="exp-item-cat" style={{color:cat.color}}>{cat.name}</div>
@@ -822,7 +893,7 @@ function ExpensesModule({meta}){
   /* ════════════════════════════════════════
      RENDER
   ════════════════════════════════════════ */
-  const TABS = [{id:'home',label:'Home'},{id:'movimenti',label:'Movimenti'},{id:'analisi',label:'Analisi'},{id:'conti',label:'Conti'},{id:'investimenti',label:'Investimenti'}];
+  const TABS = [{id:'home',label:'Home'},{id:'movimenti',label:'Movimenti'},{id:'conti',label:'Conti'},{id:'investimenti',label:'Investimenti'}];
 
   return (
     <>
@@ -884,14 +955,29 @@ function ExpensesModule({meta}){
             {/* Category */}
             <div className="sec">Categoria</div>
             <div className="exp-cats">
-              {EXPENSE_CATS.map(c=>(
-                <div key={c.id} className={`exp-cat${fCat===c.id?' sel':''}`} onClick={()=>setFCat(c.id)}>
+              {(fType==='expense'?allExpCats:allIncCats).map(c=>(
+                <div key={c.id} className={`exp-cat${fCat===c.id?' sel':''}`}
+                  onClick={()=>setFCat(c.id)}
+                  onContextMenu={e=>{e.preventDefault();c.custom&&setEditingCat({cat:c,type:fType});}}>
                   <div className="exp-cat-icon" style={fCat===c.id?{borderColor:c.color,background:c.color+'20'}:{}}>
-                    <Icon name={c.icon} size={20} color={fCat===c.id?c.color:'var(--muted)'}/>
+                    {c.emoji
+                      ? <span style={{fontSize:20}}>{c.emoji}</span>
+                      : <Icon name={c.icon} size={20} color={fCat===c.id?c.color:'var(--muted)'}/>
+                    }
                   </div>
-                  <div className="exp-cat-name">{c.name}</div>
+                  <div className="exp-cat-name" style={{position:'relative'}}>
+                    {c.name}
+                    {c.custom&&<span style={{position:'absolute',top:-6,right:-4,fontSize:7,color:'var(--muted)'}}>✎</span>}
+                  </div>
                 </div>
               ))}
+              {/* Crea button */}
+              <div className="exp-cat" onClick={()=>setEditingCat({cat:{},type:fType})}>
+                <div className="exp-cat-icon" style={{borderColor:'var(--border2)',borderStyle:'dashed'}}>
+                  <span style={{fontSize:18,color:'var(--muted)'}}>＋</span>
+                </div>
+                <div className="exp-cat-name">Crea</div>
+              </div>
             </div>
 
             {/* Form */}
@@ -961,11 +1047,11 @@ function ExpensesModule({meta}){
           <div className="pad anim">
             {/* Inner toggle */}
             <div style={{display:'flex',gap:4,marginBottom:20,background:'var(--surface2)',borderRadius:12,padding:4}}>
-              {['storico','ricorrenti'].map(s=>(
+              {['storico','grafici'].map(s=>(
                 <button key={s} onClick={()=>setMovSec(s)} style={{flex:1,padding:'8px',borderRadius:9,border:'none',
                   background:movSec===s?ACC:'transparent',color:movSec===s?'#0b0c09':'var(--muted)',
                   fontFamily:"'Jost',sans-serif",fontSize:13,fontWeight:600,cursor:'pointer',transition:'all .2s'}}>
-                  {s==='storico'?'Storico':'Ricorrenti'}
+                  {s==='storico'?'Storico':'Grafici'}
                 </button>
               ))}
             </div>
@@ -973,6 +1059,71 @@ function ExpensesModule({meta}){
             {/* STORICO */}
             {movSec==='storico'&&(
               <>
+                {/* Ricorrenti button */}
+                <button onClick={()=>setShowRecurring(v=>!v)}
+                  style={{width:'100%',padding:'11px 14px',borderRadius:12,
+                  border:`1px solid ${showRecurring?ACC:ACC+'44'}`,
+                  background:showRecurring?ACC+'18':'var(--surface)',
+                  color:showRecurring?ACC:'var(--muted)',
+                  fontFamily:"'Jost',sans-serif",fontSize:13,fontWeight:600,
+                  cursor:'pointer',marginBottom:16,display:'flex',alignItems:'center',justifyContent:'space-between',transition:'all .2s'}}>
+                  <span>🔁 Spese ricorrenti ({recurring.length})</span>
+                  <span style={{fontSize:10}}>{showRecurring?'▲ Chiudi':'▼ Mostra'}</span>
+                </button>
+
+                {/* Ricorrenti panel */}
+                {showRecurring&&(
+                  <div style={{background:'var(--surface)',borderRadius:14,border:`1px solid ${ACC}33`,
+                    padding:'4px 0 8px',marginBottom:20}}>
+                    <div style={{padding:'10px 14px 8px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                      <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.08em'}}>Ricorrenti</div>
+                      <button onClick={()=>setEditingRec({id:null,amount:'',type:'expense',category:'alimentari',note:'',accountId:accounts[0]?.id||'',period:'monthly',customDays:30})}
+                        style={{padding:'5px 12px',borderRadius:8,border:`1px solid ${ACC}66`,background:ACC+'15',
+                        color:ACC,fontFamily:"'Jost',sans-serif",fontSize:12,cursor:'pointer'}}>+ Nuova</button>
+                    </div>
+                    {recurring.length===0
+                      ? <div style={{color:'var(--faint)',textAlign:'center',padding:'16px 0',fontFamily:"'Jost',sans-serif",fontSize:14}}>Nessuna spesa ricorrente</div>
+                      : recurring.map(rec=>{
+                        const cat = catById(rec.category);
+                        const due = new Date(rec.nextDue);
+                        const daysLeft = Math.ceil((due-new Date())/(1000*60*60*24));
+                        const dueColor = daysLeft<=0?'#e07070':daysLeft<=3?'#d4943a':ACC;
+                        const dueLabel = daysLeft<=0?'Scaduta':daysLeft===1?'Domani':`${daysLeft}g`;
+                        return (
+                          <div key={rec.id} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 14px',
+                            borderTop:'1px solid var(--border)'}}>
+                            <div style={{width:32,height:32,borderRadius:9,background:cat.color+'20',
+                              display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                              {cat.emoji
+                                ? <span style={{fontSize:16}}>{cat.emoji}</span>
+                                : <Icon name={cat.icon} size={16} color={cat.color}/>}
+                            </div>
+                            <div style={{flex:1,minWidth:0}}>
+                              <div style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--text)',fontWeight:500}}>
+                                {rec.note||cat.name}
+                              </div>
+                              <div style={{fontSize:11,color:'var(--muted)'}}>
+                                {rec.period==='monthly'?'Mensile':rec.period==='yearly'?'Annuale':`Ogni ${rec.customDays}g`}
+                                {' · '}<span style={{color:dueColor}}>{dueLabel}</span>
+                              </div>
+                            </div>
+                            <div style={{textAlign:'right',flexShrink:0,marginRight:6}}>
+                              <div style={{fontFamily:"'Jost',sans-serif",fontWeight:700,fontSize:14,
+                                color:rec.type==='income'?ACC:'#e07070'}}>
+                                {rec.type==='income'?'+':'−'}€{rec.amount.toFixed(2)}
+                              </div>
+                            </div>
+                            <button onClick={()=>setEditingRec({...rec})}
+                              style={{padding:'5px 9px',borderRadius:7,border:`1px solid ${ACC}44`,
+                              background:ACC+'11',color:ACC,fontFamily:"'Jost',sans-serif",fontSize:11,cursor:'pointer',flexShrink:0}}>✎</button>
+                          </div>
+                        );
+                      })
+                    }
+                  </div>
+                )}
+
+                {/* Filters */}
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6,marginBottom:14}}>
                   <select className="exp-note-inp" value={fltMonth} onChange={e=>setFltMonth(e.target.value)}
                     style={{color:'var(--text)',fontSize:12,padding:'8px 6px'}}>
@@ -986,7 +1137,7 @@ function ExpensesModule({meta}){
                   <select className="exp-note-inp" value={fltCat} onChange={e=>setFltCat(e.target.value)}
                     style={{color:'var(--text)',fontSize:12,padding:'8px 6px'}}>
                     <option value="all">Cat.</option>
-                    {EXPENSE_CATS.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
+                    {[...allExpCats,...allIncCats].map(c=><option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
                   <select className="exp-note-inp" value={fltAcc} onChange={e=>setFltAcc(e.target.value)}
                     style={{color:'var(--text)',fontSize:12,padding:'8px 6px'}}>
@@ -1004,62 +1155,11 @@ function ExpensesModule({meta}){
               </>
             )}
 
-            {/* RICORRENTI */}
-            {movSec==='ricorrenti'&&(
-              <>
-                <button onClick={()=>setEditingRec({id:null,amount:'',type:'expense',category:'cibo',note:'',accountId:accounts[0]?.id||'',period:'monthly',customDays:30})}
-                  style={{width:'100%',padding:'12px',borderRadius:12,border:`1px dashed ${ACC}`,
-                  background:ACC+'11',color:ACC,fontFamily:"'Jost',sans-serif",fontSize:14,cursor:'pointer',marginBottom:16}}>
-                  + Nuova ricorrente
-                </button>
-                {recurring.length===0
-                  ? <div style={{color:'var(--faint)',textAlign:'center',padding:'40px 0',fontFamily:"'Jost',sans-serif",fontSize:18}}>Nessuna spesa ricorrente</div>
-                  : recurring.map(rec=>{
-                    const cat = catById(rec.category);
-                    const acc = accById(rec.accountId);
-                    const due = new Date(rec.nextDue);
-                    const daysLeft = Math.ceil((due-new Date())/(1000*60*60*24));
-                    const dueColor = daysLeft<=0?'#e07070':daysLeft<=3?'#d4943a':ACC;
-                    const dueLabel = daysLeft<=0?'Scaduta':daysLeft===1?'Domani':`${daysLeft}g al rinnovo`;
-                    return (
-                      <div key={rec.id} className="exp-item" style={{flexWrap:'wrap',paddingBottom:10}}>
-                        <div className="exp-item-icon" style={{background:cat.color+'20',flexShrink:0}}>
-                          <Icon name={cat.icon} size={18} color={cat.color}/>
-                        </div>
-                        <div className="exp-item-info" style={{flex:1,minWidth:0}}>
-                          <div className="exp-item-cat" style={{color:cat.color}}>{cat.name}</div>
-                          {rec.note&&<div className="exp-item-note">{rec.note}</div>}
-                          <div className="exp-item-date">
-                            {rec.period==='monthly'?'Mensile':rec.period==='yearly'?'Annuale':`Ogni ${rec.customDays}g`}
-                            {' · '}<span style={{color:dueColor}}>{dueLabel}</span>
-                          </div>
-                          {acc&&<div style={{fontSize:11,color:'var(--muted)',marginTop:2}}>{acc.name}</div>}
-                        </div>
-                        <div style={{textAlign:'right',flexShrink:0}}>
-                          <div style={{fontFamily:"'Jost',sans-serif",fontWeight:700,fontSize:15,color:rec.type==='income'?ACC:'#e07070'}}>
-                            {rec.type==='income'?'+':'−'}€{rec.amount.toFixed(2)}
-                          </div>
-                        </div>
-                        <div style={{display:'flex',gap:6,width:'100%',marginTop:8,paddingLeft:46}}>
-                          <button onClick={()=>setEditingRec({...rec})} style={{flex:1,padding:'6px 0',borderRadius:8,
-                            border:`1px solid ${ACC}44`,background:ACC+'11',color:ACC,
-                            fontFamily:"'Jost',sans-serif",fontSize:12,cursor:'pointer'}}>Modifica</button>
-                          <button onClick={()=>deleteRecurring(rec.id)} style={{flex:1,padding:'6px 0',borderRadius:8,
-                            border:'1px solid #e0707044',background:'#e0707011',color:'#e07070',
-                            fontFamily:"'Jost',sans-serif",fontSize:12,cursor:'pointer'}}>Elimina</button>
-                        </div>
-                      </div>
-                    );
-                  })
-                }
-              </>
+            {/* GRAFICI */}
+            {movSec==='grafici'&&(
+              <ExpGrafici expenses={expenses} ACC={ACC} expCats={allExpCats}/>
             )}
           </div>
-        )}
-
-        {/* ── ANALISI ── */}
-        {tab==='analisi'&&(
-          <ExpAnalisi expenses={expenses} budgets={budgets} setBudgets={setBudgets} ACC={ACC}/>
         )}
 
         {/* ── CONTI ── */}
@@ -1086,30 +1186,34 @@ function ExpensesModule({meta}){
               return (
                 <div key={acc.id} style={{background:'var(--surface)',borderRadius:16,border:`1px solid ${isDef?acc.color+'66':'var(--border)'}`,marginBottom:12,overflow:'hidden'}}>
                   <div style={{padding:16}}>
-                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
-                      <div>
-                        <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
-                          <div style={{width:10,height:10,borderRadius:'50%',background:acc.color,flexShrink:0}}/>
-                          <div style={{fontFamily:"'Jost',sans-serif",fontSize:16,fontWeight:600,color:'var(--text)'}}>{acc.name}</div>
-                          {isDef&&<span style={{fontSize:10,padding:'2px 7px',borderRadius:20,border:`1px solid ${acc.color}`,color:acc.color,fontFamily:"'Jost',sans-serif"}}>default</span>}
-                        </div>
-                        <div style={{fontFamily:"'Jost',sans-serif",fontSize:28,fontWeight:700,color:(acc.balance||0)>=0?acc.color:'#e07070',paddingLeft:18}}>
-                          {(acc.balance||0)>=0?'+':''}€{(acc.balance||0).toFixed(2)}
-                        </div>
+                    {/* Header row: dot+name+badge | buttons */}
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
+                      <div style={{display:'flex',alignItems:'center',gap:8,flex:1,minWidth:0}}>
+                        <div style={{width:10,height:10,borderRadius:'50%',background:acc.color,flexShrink:0}}/>
+                        <div style={{fontFamily:"'Jost',sans-serif",fontSize:16,fontWeight:600,color:'var(--text)',
+                          overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{acc.name}</div>
+                        {isDef&&<span style={{fontSize:10,padding:'2px 7px',borderRadius:20,flexShrink:0,
+                          border:`1px solid ${acc.color}`,color:acc.color,fontFamily:"'Jost',sans-serif"}}>default</span>}
                       </div>
-                      <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'flex-end'}}>
+                      <div style={{display:'flex',flexDirection:'column',gap:6,alignItems:'flex-end',flexShrink:0,marginLeft:10}}>
                         <button onClick={()=>setEditingAcc({...acc})}
-                          style={{padding:'6px 12px',borderRadius:8,border:`1px solid ${acc.color}44`,
-                          background:acc.color+'11',color:acc.color,fontFamily:"'Jost',sans-serif",fontSize:12,cursor:'pointer'}}>
+                          style={{padding:'6px 14px',borderRadius:8,border:`1px solid ${acc.color}44`,
+                          background:acc.color+'11',color:acc.color,fontFamily:"'Jost',sans-serif",fontSize:12,cursor:'pointer',whiteSpace:'nowrap'}}>
                           Modifica
                         </button>
                         <button onClick={()=>setDefaultAccount(acc.id)}
-                          style={{padding:'5px 12px',borderRadius:8,border:`1px solid ${isDef?acc.color:'var(--border)'}`,
+                          style={{padding:'5px 14px',borderRadius:8,border:`1px solid ${isDef?acc.color:'var(--border)'}`,
                           background:isDef?acc.color+'22':'var(--surface2)',color:isDef?acc.color:'var(--muted)',
-                          fontFamily:"'Jost',sans-serif",fontSize:12,cursor:'pointer'}}>
-                          {isDef?'⭐ Default':'☆ Imposta default'}
+                          fontFamily:"'Jost',sans-serif",fontSize:12,cursor:'pointer',whiteSpace:'nowrap'}}>
+                          {isDef?'⭐ Default':'☆ Default'}
                         </button>
                       </div>
+                    </div>
+                    {/* Balance: full width, no competition */}
+                    <div style={{fontFamily:"'Jost',sans-serif",fontSize:30,fontWeight:700,lineHeight:1.1,
+                      color:(acc.balance||0)>=0?acc.color:'#e07070',paddingLeft:18,marginBottom:12,
+                      wordBreak:'break-word'}}>
+                      {(acc.balance||0)>=0?'+':''}€{(acc.balance||0).toFixed(2)}
                     </div>
                     <button onClick={()=>setExpandedAcc(isExp?null:acc.id)}
                       style={{marginTop:12,width:'100%',padding:'8px',borderRadius:8,
@@ -1154,6 +1258,15 @@ function ExpensesModule({meta}){
       )}
       {sellingInv&&(
         <ExpSellModal inv={sellingInv} onSell={sellInvestment} onClose={()=>setSellingInv(null)}/>
+      )}
+      {editingCat&&(
+        <ExpCatModal
+          cat={editingCat.cat}
+          type={editingCat.type}
+          onSave={saveCustomCat}
+          onDelete={id=>deleteCustomCat(id,editingCat.type)}
+          onClose={()=>setEditingCat(null)}
+        />
       )}
     </>
   );
