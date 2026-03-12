@@ -624,10 +624,10 @@ function CalendarSection(){
     else if(calView==='week'){tMin=startOfWeek(curDate);tMax=addDays(tMin,6);tMax.setHours(23,59,59);}
     else{tMin=new Date(curDate);tMin.setHours(0,0,0,0);tMax=new Date(curDate);tMax.setHours(23,59,59);}
     try{
-      const r=await fetch(`${GCAL_API}/calendars/primary/events?${new URLSearchParams({timeMin:tMin.toISOString(),timeMax:tMax.toISOString(),singleEvents:'true',orderBy:'startTime',maxResults:'250'})}`,{headers:{Authorization:`Bearer ${token.access_token}`}});
+      const r=await fetch(GCAL_API+'/calendars/primary/events?'+new URLSearchParams({timeMin:tMin.toISOString(),timeMax:tMax.toISOString(),singleEvents:'true',orderBy:'startTime',maxResults:'250'}),{headers:{Authorization:'Bearer '+token.access_token}});
       if(r.status===401){disconnect();return;}
       const data=await r.json();setEvents(data.items||[]);
-    }catch(e){console.error(e);}
+    }catch(e){console.error('fetchEvents error',e);}
     setLoading(false);
   }
 
@@ -653,7 +653,7 @@ function CalendarSection(){
     return curDate.toLocaleDateString('it',{weekday:'long',day:'numeric',month:'long'});
   }
 
-  function eventsOnDay(d){ return events.filter(function(e){ var s=(e.start&&e.start.date)||(e.start&&e.start.dateTime);if(!s)return false;return sameDay(new Date(s),d); }); }
+  function eventsOnDay(d){ return events.filter(function(e){ var ds=e.start&&e.start.date,dt=e.start&&e.start.dateTime; if(!ds&&!dt)return false; var parsed=ds?new Date(ds+'T00:00:00'):new Date(dt); return sameDay(parsed,d); }); }
   function evtColor(e){ const c=['#6aadcf','#7aba7a','#d4943a','#c96a6a','#9a7aba','#d4c9a8'];return c[(e.id||'').length%c.length]; }
   function evtTime(e){ if(e.start&&e.start.date)return'Tutto il giorno';if(e.start&&e.start.dateTime){var t=new Date(e.start.dateTime);return t.toLocaleTimeString('it',{hour:'2-digit',minute:'2-digit'});}return''; }
 
@@ -686,6 +686,7 @@ function CalendarSection(){
         <div className="cal-topbar-actions">
           <button className="cal-today-btn" onClick={goToday}>Oggi</button>
           {isConnected&&<button className="cal-add-btn" onClick={()=>setShowNewEvent(true)}>+ Evento</button>}
+          {isConnected&&<button className="cal-sett-btn" onClick={fetchEvents} title="Aggiorna"><Icon name="back_arr" size={16} style={{transform:'rotate(90deg)'}}/></button>}
           <button className="cal-sett-btn" onClick={()=>setShowSettings(true)}><Icon name="nav_sett" size={16}/></button>
         </div>
       </div>
