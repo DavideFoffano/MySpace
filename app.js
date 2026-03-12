@@ -4,6 +4,12 @@
 function App(){
   const [currentModule,setCurrentModule]=useState(()=>LS.get('ms_module')||'gym');
 
+  /* ── Hide splash on first mount ── */
+  useEffect(()=>{
+    const s=document.getElementById('splash');
+    if(s){s.classList.add('hide');setTimeout(()=>{s.remove();},300);}
+  },[]);
+
   /* ── Module color CSS vars ── */
   useEffect(()=>{
     const m=MODULE_META[currentModule];
