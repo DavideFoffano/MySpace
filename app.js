@@ -2,6 +2,12 @@
    APP — slim router + module nav
 ═══════════════════════════════════════════ */
 function App(){
+  /* ── Hide splash on first mount ── */
+  useEffect(()=>{
+    const s=document.getElementById('splash');
+    if(s){s.classList.add('hide');setTimeout(()=>{s.remove();},320);}
+  },[]);
+
   const [currentModule,setCurrentModule]=useState(()=>LS.get('ms_module')||'gym');
 
   /* ── Module color CSS vars ── */
