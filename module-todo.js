@@ -474,6 +474,73 @@ function TodoSection(){
 }
 
 /* ══════════════════════════════════════════
+   CALENDAR VIEWS (standalone components for Babel compatibility)
+══════════════════════════════════════════ */
+function CalMonthView({curDate,selDate,eventsOnDay,evtColor,setSelDate,setCalView,setCurDate,EventsList}){
+  const year=curDate.getFullYear(),month=curDate.getMonth();
+  const firstDay=new Date(year,month,1),offset=firstDay.getDay()===0?6:firstDay.getDay()-1;
+  const dim=new Date(year,month+1,0).getDate();
+  const cells=[];
+  for(let i=0;i<offset;i++)cells.push(null);
+  for(let d=1;d<=dim;d++)cells.push(new Date(year,month,d));
+  const todayD=new Date();todayD.setHours(0,0,0,0);
+  return(
+    <div className="cal-month">
+      <div className="cal-dow-row">{DAY_NAMES_SHORT.map(d=><div key={d} className="cal-dow">{d}</div>)}</div>
+      <div className="cal-grid">
+        {cells.map((d,i)=>{
+          if(!d)return<div key={"e"+i} className="cal-cell empty"/>;
+          const evts=eventsOnDay(d),isToday=sameDay(d,todayD),isSel=sameDay(d,selDate);
+          return(
+            <div key={i} className={"cal-cell"+(isToday?" today":"")+(isSel?" sel":"")}
+              onClick={()=>{setSelDate(d);setCalView('day');setCurDate(d);}}>
+              <div className="cal-num">{d.getDate()}</div>
+              <div className="cal-dots">
+                {evts.slice(0,3).map((e,j)=><span key={j} className="cal-dot" style={{background:evtColor(e)}}/>)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="cal-day-preview">
+        <div className="cal-preview-title">{selDate.toLocaleDateString('it',{weekday:'long',day:'numeric',month:'long'})}</div>
+        <EventsList day={selDate}/>
+      </div>
+    </div>
+  );
+}
+
+function CalWeekView({curDate,selDate,eventsOnDay,evtColor,setSelDate,setCalView,setCurDate}){
+  const wStart=startOfWeek(curDate),days=Array.from({length:7},(_,i)=>addDays(wStart,i));
+  const todayD=new Date();todayD.setHours(0,0,0,0);
+  return(
+    <div className="cal-week">
+      <div className="cal-week-row">
+        {days.map((d,i)=>{
+          const evts=eventsOnDay(d),isToday=sameDay(d,todayD),isSel=sameDay(d,selDate);
+          return(
+            <div key={i} className={"cal-week-col"+(isToday?" today":"")+(isSel?" sel":"")}
+              onClick={()=>{setSelDate(d);setCurDate(d);setCalView('day');}}>
+              <div className="cal-week-dow">{DAY_NAMES_SHORT[i]}</div>
+              <div className="cal-week-num">{d.getDate()}</div>
+              <div className="cal-week-evts">
+                {evts.slice(0,3).map((e,j)=>(
+                  <div key={j} className="cal-week-pill"
+                    style={{background:evtColor(e)+'28',borderLeft:'2px solid '+evtColor(e)}}>
+                    {e.summary?e.summary.slice(0,12):''}
+                  </div>
+                ))}
+                {evts.length>3&&<div className="cal-week-more">+{evts.length-3}</div>}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════
    CALENDAR SECTION
 ══════════════════════════════════════════ */
 function CalendarSection(){
@@ -608,44 +675,9 @@ function CalendarSection(){
       {!isConnected&&<div className="cal-not-connected"><span>📅</span><span>Connetti nelle <b onClick={()=>setShowSettings(true)} style={{color:'var(--acc)',cursor:'pointer'}}>impostazioni</b></span></div>}
       {saveMsg&&<div className="cal-save-msg">{saveMsg}</div>}
       {loading&&<div className="cal-loading-bar"/>}
-      {calView==='month'&&(()=>{
-        const year=curDate.getFullYear(),month=curDate.getMonth();
-        const firstDay=new Date(year,month,1),offset=firstDay.getDay()===0?6:firstDay.getDay()-1;
-        const dim=new Date(year,month+1,0).getDate();
-        const cells=[];for(let i=0;i<offset;i++)cells.push(null);for(let d=1;d<=dim;d++)cells.push(new Date(year,month,d));
-        const todayD=new Date();todayD.setHours(0,0,0,0);
-        return(<div className="cal-month">
-          <div className="cal-dow-row">{DAY_NAMES_SHORT.map(d=><div key={d} className="cal-dow">{d}</div>)}</div>
-          <div className="cal-grid">{cells.map((d,i)=>{
-            if(!d)return<div key={`e${i}`} className="cal-cell empty"/>;
-            const evts=eventsOnDay(d),isToday=sameDay(d,todayD),isSel=sameDay(d,selDate);
-            return(<div key={i} className={`cal-cell${isToday?' today':''}${isSel?' sel':''}`} onClick={()=>{setSelDate(d);setCalView('day');setCurDate(d);}}>
-              <div className="cal-num">{d.getDate()}</div>
-              <div className="cal-dots">{evts.slice(0,3).map((e,j)=><span key={j} className="cal-dot" style={{background:evtColor(e)}}/>)}</div>
-            </div>);
-          })}</div>
-          <div className="cal-day-preview">
-            <div className="cal-preview-title">{selDate.toLocaleDateString('it',{weekday:'long',day:'numeric',month:'long'})}</div>
-            <EventsList day={selDate}/>
-          </div>
-        </div>);
-      })()}
-      {calView==='week'&&(()=>{
-        const wStart=startOfWeek(curDate),days=Array.from({length:7},(_,i)=>addDays(wStart,i));
-        const todayD=new Date();todayD.setHours(0,0,0,0);
-        return(<div className="cal-week"><div className="cal-week-row">{days.map((d,i)=>{
-          const evts=eventsOnDay(d),isToday=sameDay(d,todayD),isSel=sameDay(d,selDate);
-          return(<div key={i} className={`cal-week-col${isToday?' today':''}${isSel?' sel':''}`} onClick={()=>{setSelDate(d);setCurDate(d);setCalView('day');}}>
-            <div className="cal-week-dow">{DAY_NAMES_SHORT[i]}</div>
-            <div className="cal-week-num">{d.getDate()}</div>
-            <div className="cal-week-evts">
-              {evts.slice(0,3).map((e,j)=><div key={j} className="cal-week-pill" style={{background:evtColor(e)+'28',borderLeft:`2px solid ${evtColor(e)}`}}>{e.summary?.slice(0,12)}</div>)}
-              {evts.length>3&&<div className="cal-week-more">+{evts.length-3}</div>}
-            </div>
-          </div>);
-        })}</div></div>);
-      })()}
-      {calView==='day'&&<div className="cal-day-view"><EventsList day={curDate}/></div>}
+      {calView==='month'&&<CalMonthView curDate={curDate} selDate={selDate} eventsOnDay={eventsOnDay} evtColor={evtColor} setSelDate={setSelDate} setCalView={setCalView} setCurDate={setCurDate} EventsList={EventsList}/>}
+      {calView==='week' &&<CalWeekView  curDate={curDate} selDate={selDate} eventsOnDay={eventsOnDay} evtColor={evtColor} setSelDate={setSelDate} setCalView={setCalView} setCurDate={setCurDate}/>}
+      {calView==='day'  &&<div className="cal-day-view"><EventsList day={curDate}/></div>}
 
       {showNewEvent&&(
         <div className="overlay" onClick={()=>setShowNewEvent(false)}>
