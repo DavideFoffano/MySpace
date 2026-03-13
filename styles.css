@@ -308,7 +308,7 @@ input[type=number]{-moz-appearance:textfield}
 
   /* ══ TODO v3 — Layout kanban ══ */
   .todo-kanban-screen{display:flex;flex-direction:column;overflow:hidden;}
-  .todo-pad{flex:1;overflow:hidden;display:flex;flex-direction:column;padding-top:12px;padding-bottom:0 !important;}
+  .todo-pad{flex:1;overflow:hidden;display:flex;flex-direction:column;padding-top:12px;padding-bottom:10px !important;}
   .todo-layout{display:flex;flex-direction:column;height:100%;overflow:hidden;gap:0;}
 
   /* ══ List tabs (full-width grid) ══ */
@@ -335,7 +335,7 @@ input[type=number]{-moz-appearance:textfield}
   /* Kanban task card */
   .kanban-task{background:var(--surface2);border:1px solid var(--border);border-left:3px solid;border-radius:9px;padding:7px 6px;cursor:pointer;transition:all .12s;-webkit-tap-highlight-color:transparent;}
   .kanban-task:active{transform:scale(.97);}
-  .kanban-task.is-dragging{opacity:.35;transform:scale(.95);}
+  .kanban-task.is-dragging{opacity:.5;transform:scale(.97);}
   .kanban-task.is-target{box-shadow:0 0 0 2px var(--acc);}
   .kt-text{font-family:var(--font);font-size:11px;line-height:1.4;color:var(--text);overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;word-break:break-word;}
   .kt-badges{display:flex;gap:3px;margin-top:5px;flex-wrap:wrap;}

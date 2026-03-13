@@ -163,37 +163,68 @@ function TaskDetail({task,onSave,onDelete,onClose}){
 /* ══════════════════════════════════════════
    KANBAN COLUMN
 ══════════════════════════════════════════ */
-function KanbanColumn({status,tasks,onTaskClick,onReorder}){
+function KanbanColumn({status,tasks,onTaskClick,onReorder,onMoveTask}){
   const [sortMode,setSortMode]=useState('priority');
-  const [dragIdx, setDragIdx] =useState(null);
-  const [dragOver,setDragOver]=useState(null);
+  const [dragOver, setDragOver]=useState(null);
+  const [draggingId,setDraggingId]=useState(null);
   const touchRef=useRef(null);
   const bodyRef =useRef(null);
 
   const meta   =STATUS_META[status];
   const sorted =sortMode==='priority'?sortByPriority(tasks):sortByOrder(tasks);
 
-  function doReorder(from,to){
-    if(from===null||to===null||from===to)return;
-    const arr=[...sorted];const[item]=arr.splice(from,1);arr.splice(to,0,item);
+  // Clear draggingId if the task was moved to another column
+  useEffect(()=>{
+    if(draggingId && !tasks.find(function(t){return t.id===draggingId;})){
+      setDraggingId(null);
+      setDragOver(null);
+    }
+  },[tasks]);
+
+  function doReorder(fromIdx,toIdx){
+    if(fromIdx===null||toIdx===null||fromIdx===toIdx)return;
+    const arr=[...sorted];const[item]=arr.splice(fromIdx,1);arr.splice(toIdx,0,item);
     setSortMode('manual');
     onReorder(arr.map((t,i)=>({...t,order:i})));
   }
-  function onDragStart(e,i){ setDragIdx(i);e.dataTransfer.effectAllowed='move'; }
-  function onDragEnd()     { doReorder(dragIdx,dragOver);setDragIdx(null);setDragOver(null); }
-  function onTouchStart(e,i){ touchRef.current=i;setDragIdx(i); }
+
+  function onDragStart(e,i,taskId){
+    setDraggingId(taskId);
+    e.dataTransfer.effectAllowed='move';
+    e.dataTransfer.setData('text/plain',JSON.stringify({taskId,fromStatus:status,fromIdx:i}));
+  }
+  function onDragEnd(){ setDraggingId(null);setDragOver(null); }
+
+  function onColDragOver(e){ e.preventDefault();e.dataTransfer.dropEffect='move'; }
+  function onColDrop(e){
+    e.preventDefault();
+    try{
+      const d=JSON.parse(e.dataTransfer.getData('text/plain'));
+      if(d.fromStatus!==status){
+        onMoveTask&&onMoveTask(d.taskId,d.fromStatus,status);
+      } else {
+        doReorder(d.fromIdx,dragOver);
+      }
+    }catch(err){}
+    setDragOver(null);
+  }
+
+  function onTouchStart(e,i){ touchRef.current={idx:i,over:i};setDraggingId(sorted[i]&&sorted[i].id); }
   function onTouchMove(e){
     const y=e.touches[0].clientY;
-    const cards=bodyRef.current && bodyRef.current.querySelectorAll('.kanban-task');
+    const cards=bodyRef.current&&bodyRef.current.querySelectorAll('.kanban-task');
     if(!cards)return;
-    let target=touchRef.current;
+    let target=touchRef.current.idx;
     cards.forEach((c,i)=>{ const r=c.getBoundingClientRect();if(y>=r.top&&y<=r.bottom)target=i; });
-    touchRef.current=target;setDragOver(target);
+    touchRef.current.over=target;setDragOver(target);
   }
-  function onTouchEnd(){ doReorder(dragIdx,touchRef.current);setDragIdx(null);setDragOver(null); }
+  function onTouchEnd(){
+    if(touchRef.current){ doReorder(touchRef.current.idx,touchRef.current.over); }
+    setDraggingId(null);setDragOver(null);touchRef.current=null;
+  }
 
   return(
-    <div className="kanban-col">
+    <div className="kanban-col" onDragOver={onColDragOver} onDrop={onColDrop}>
       <div className="kanban-col-hdr" style={{borderTopColor:meta.color}}>
         <span className="kcol-label" style={{color:meta.color}}>{meta.label}</span>
         <span className="kcol-count">{tasks.length}</span>
@@ -211,10 +242,10 @@ function KanbanColumn({status,tasks,onTaskClick,onReorder}){
           const subTot=(t.subtasks||[]).length,subDon=(t.subtasks||[]).filter(s=>s.done).length;
           return(
             <div key={t.id}
-              className={`kanban-task${dragIdx===i?' is-dragging':''}${dragOver===i&&dragIdx!==null&&dragIdx!==i?' is-target':''}`}
-              style={{borderLeftColor:p?p.color:'var(--border)'}}
+              className={`kanban-task${draggingId===t.id?' is-dragging':''}${dragOver===i&&draggingId&&draggingId!==t.id?' is-target':''}`}
+              style={{borderLeftColor:p?p.color:'var(--border)',borderLeftWidth:p?3:1}}
               draggable
-              onDragStart={e=>onDragStart(e,i)}
+              onDragStart={e=>onDragStart(e,i,t.id)}
               onDragEnter={()=>setDragOver(i)}
               onDragOver={e=>e.preventDefault()}
               onDragEnd={onDragEnd}
@@ -222,10 +253,9 @@ function KanbanColumn({status,tasks,onTaskClick,onReorder}){
               onTouchMove={onTouchMove}
               onTouchEnd={onTouchEnd}
               onClick={()=>onTaskClick(t)}>
-              <div className="kt-text">{t.text}</div>
-              {(p||due||subTot>0)&&(
+              <div className="kt-text" style={status==='done'?{textDecoration:'line-through',opacity:.5}:{}}>{t.text}</div>
+              {(due||subTot>0)&&(
                 <div className="kt-badges">
-                  {p&&<span className="kt-pri" style={{background:p.bg,color:p.color}}>{p.label.charAt(0)}</span>}
                   {due&&<span className="kt-due" style={{color:due.color}}>{due.text}</span>}
                   {subTot>0&&<span className="kt-sub">{subDon}/{subTot}</span>}
                 </div>
@@ -252,7 +282,7 @@ function ManageListsModal({lists,onSave,onClose}){
   function add(){ if(!newName.trim())return; const nl={id:uuid(),name:newName.trim(),color:LIST_COLORS[local.length%LIST_COLORS.length]}; setLocal(ls=>[...ls,nl]); setNewName(''); }
 
   return(
-    <div className="overlay" onClick={onClose}>
+    <div className="overlay" onClick={()=>{if(colorFor)setColorFor(null);else onClose();}}>
       <div className="td-modal manage-modal" onClick={e=>e.stopPropagation()}>
         <div className="td-hdr">
           <div className="td-title">Gestisci liste</div>
@@ -261,15 +291,15 @@ function ManageListsModal({lists,onSave,onClose}){
 
         {local.map(l=>(
           <div key={l.id} className="ml-row">
-            <div className="ml-color-wrap">
-              <div className="ml-color-dot" style={{background:l.color}}
+            <div style={{position:'relative',flexShrink:0}}>
+              <div style={{width:22,height:22,borderRadius:'50%',background:l.color,cursor:'pointer',border:'2px solid rgba(255,255,255,0.15)',flexShrink:0}}
                 onClick={()=>setColorFor(colorFor===l.id?null:l.id)}/>
               {colorFor===l.id&&(
-                <div className="ml-color-picker">
+                <div style={{position:'absolute',top:28,left:0,zIndex:100,background:'var(--surface2)',border:'1px solid var(--border2)',borderRadius:10,padding:8,display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,boxShadow:'0 4px 16px rgba(0,0,0,0.4)'}}>
                   {LIST_COLORS.map(c=>(
-                    <div key={c} className={`ml-color-opt${l.color===c?' sel':''}`}
-                      style={{background:c}}
-                      onClick={()=>{ upd(l.id,'color',c); setColorFor(null); }}/>
+                    <div key={c}
+                      style={{width:24,height:24,borderRadius:'50%',background:c,cursor:'pointer',border:l.color===c?'2px solid #fff':'2px solid transparent',boxSizing:'border-box'}}
+                      onClick={e=>{ e.stopPropagation(); upd(l.id,'color',c); setColorFor(null); }}/>
                   ))}
                 </div>
               )}
@@ -311,7 +341,6 @@ function QuickAddBar({lists,activeListId,onAdd}){
   const [text,   setText]   =useState('');
   const [pri,    setPri]    =useState(null);
   const [listId, setListId] =useState(activeListId);
-  const [status, setStatus] =useState('todo');
   const [dueDate,setDueDate]=useState('');
   const inputRef=useRef(null);
 
@@ -319,7 +348,7 @@ function QuickAddBar({lists,activeListId,onAdd}){
 
   function submit(){
     if(!text.trim())return;
-    onAdd({text:text.trim(),priority:pri,listId,status,dueDate:dueDate||null});
+    onAdd({text:text.trim(),priority:pri,listId,status:'todo',dueDate:dueDate||null});
     setText('');setPri(null);setDueDate('');setOpen(false);
   }
   function openBar(){ setOpen(true); setTimeout(()=>inputRef.current && inputRef.current.focus(),80); }
@@ -332,7 +361,7 @@ function QuickAddBar({lists,activeListId,onAdd}){
   );
 
   return(
-    <div className="qa-bar expanded">
+    <div className="qa-bar expanded" style={{paddingBottom:'max(env(safe-area-inset-bottom,0px),12px)'}}>
       <input ref={inputRef} className="qa-input"
         placeholder="Titolo attività..."
         value={text} onChange={e=>setText(e.target.value)}
@@ -356,22 +385,9 @@ function QuickAddBar({lists,activeListId,onAdd}){
             <button key={l.id} className={`qa-chip${listId===l.id?' act':''}`}
               style={listId===l.id?{borderColor:l.color,color:l.color,background:l.color+'22'}:{}}
               onClick={()=>setListId(l.id)}>
-              <span style={{width:6,height:6,borderRadius:'50%',background:l.color,display:'inline-block',marginRight:4,flexShrink:0}}/>
               {l.name}
             </button>
           ))}
-        </div>
-      </div>
-
-      <div className="qa-row">
-        <span className="qa-row-label">Stato</span>
-        <div className="qa-chips">
-          {STATUS_COLS.map(s=>{
-            const m=STATUS_META[s];
-            return(<button key={s} className={`qa-chip${status===s?' act':''}`}
-              style={status===s?{background:m.color+'22',borderColor:m.color,color:m.color}:{}}
-              onClick={()=>setStatus(s)}>{m.label}</button>);
-          })}
         </div>
       </div>
 
@@ -417,6 +433,10 @@ function TodoSection(){
     saveTodos(todos.map(t=>{ const r=reorderedTasks.find(r=>r.id===t.id);return r||t; }));
   }
 
+  function moveTask(taskId,fromStatus,toStatus){
+    saveTodos(todos.map(t=>t.id===taskId?{...t,status:toStatus,doneAt:toStatus==='done'?Date.now():null}:t));
+  }
+
   function colTasks(status){ return todos.filter(t=>t.listId===activeList&&t.status===status); }
 
   function onSaveLists(newLists){
@@ -436,7 +456,6 @@ function TodoSection(){
               className={`lt-tab${activeList===l.id?' act':''}`}
               style={activeList===l.id?{borderColor:l.color,background:`${l.color}15`,boxShadow:`0 0 12px ${l.color}20`}:{}}
               onClick={()=>setActiveList(l.id)}>
-              <span className="lt-tab-dot" style={{background:l.color}}/>
               <span className="lt-tab-name" style={activeList===l.id?{color:l.color}:{}}>{l.name}</span>
               <span className="lt-tab-count" style={activeList===l.id?{color:l.color,opacity:.7}:{}}>
                 {todos.filter(t=>t.listId===l.id&&t.status!=='done').length}
@@ -450,12 +469,13 @@ function TodoSection(){
       </div>
 
       {/* ── Kanban ── */}
-      <div className="kanban">
+      <div className="kanban" style={{marginBottom:8}}>
         {STATUS_COLS.map(s=>(
           <KanbanColumn key={s} status={s}
             tasks={colTasks(s)}
             onTaskClick={setEditTask}
             onReorder={rt=>reorderInCol(s,rt)}
+            onMoveTask={moveTask}
           />
         ))}
       </div>
@@ -753,6 +773,18 @@ function TodoModule({meta}){
         </div>
 
         <div className={`pad anim${section==='todo'?' todo-pad':''}`}>
+          {section==='todo'&&(
+            <div className="greeting">Le tue<br/><span>attività</span></div>
+          )}
+          {section==='todo'&&(
+            <div className="subhead">Organizza e traccia i tuoi task</div>
+          )}
+          {section==='calendar'&&(
+            <div className="greeting">I tuoi<br/><span>impegni</span></div>
+          )}
+          {section==='calendar'&&(
+            <div className="subhead">Calendario e Google Calendar</div>
+          )}
           {section==='todo'     &&<TodoSection/>}
           {section==='calendar' &&<CalendarSection/>}
         </div>

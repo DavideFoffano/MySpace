@@ -14,6 +14,12 @@ const EXP_DEFAULT_ACCOUNTS = [
 
 const EXP_ACC_COLORS = ['#6aadcf','#d4943a','#7aba7a','#d4c9a8','#9b8ec4','#e07070','#c0a070','#70c0a0'];
 
+const INV_TYPES = {
+  'ETF':             { color:'#7aba7a', label:'📈 ETF / Fondo'         },
+  'Azione':          { color:'#d45a5a', label:'📊 Azione'              },
+  'ETC / Mat. Prime':{ color:'#d4943a', label:'🥇 ETC / Materie prime' },
+};
+
 const EXP_CAT_COLORS = [
   '#c97a4a','#a8c26b','#6dbb8a','#9b8fc2','#d4a84b','#7b8a7a',
   '#6aadcf','#d4943a','#7aba7a','#e07070','#c0a070','#70c0a0',
@@ -345,113 +351,80 @@ function ExpGrafici({expenses, ACC, expCats}){
    TAB: Investimenti
 ════════════════════════════════════════ */
 function ExpInvestimenti({investments, onAdd, onEdit, onSell, onRefresh}){
-  const invColor = '#9b8ec4';
   const pieRef  = useRef(null);
   const pieInst = useRef(null);
 
-  const totalInvested = investments.reduce((s,i)=>s+i.buyPrice*i.quantity,0);
-  const totalCurrent  = investments.reduce((s,i)=>s+(i.currentPrice||i.buyPrice)*i.quantity,0);
+  const totalInvested = investments.reduce(function(s,i){return s+i.buyPrice*(i.quantity||1);},0);
+  const totalCurrent  = investments.reduce(function(s,i){return s+(i.currentPrice||i.buyPrice)*(i.quantity||1);},0);
   const totalGain     = totalCurrent-totalInvested;
   const totalGainPct  = totalInvested>0?(totalGain/totalInvested*100):0;
-  const etfVal        = investments.filter(i=>i.type==='ETF').reduce((s,i)=>s+(i.currentPrice||i.buyPrice)*i.quantity,0);
-  const azioniVal     = investments.filter(i=>i.type==='Azione').reduce((s,i)=>s+(i.currentPrice||i.buyPrice)*i.quantity,0);
+  const typeVals      = Object.keys(INV_TYPES).map(function(t){ return {type:t,val:investments.filter(function(i){return i.type===t;}).reduce(function(s,i){return s+(i.currentPrice||i.buyPrice)*(i.quantity||1);},0)}; }).filter(function(x){return x.val>0;});
 
-  useEffect(()=>{
+  useEffect(function(){
     if(!pieRef.current||typeof Chart==='undefined') return;
     if(pieInst.current){pieInst.current.destroy();pieInst.current=null;}
     if(investments.length===0) return;
-    const data = [etfVal,azioniVal].filter(v=>v>0);
-    const labels = ['ETF/Fondi','Azioni'].filter((_,i)=>[etfVal,azioniVal][i]>0);
-    const colors = ['#9b8ec4cc','#d4943acc'].filter((_,i)=>[etfVal,azioniVal][i]>0);
     pieInst.current = new Chart(pieRef.current,{
       type:'doughnut',
-      data:{labels,datasets:[{data,backgroundColor:colors,borderColor:'#161614',borderWidth:2}]},
+      data:{labels:typeVals.map(function(x){return x.type;}),datasets:[{data:typeVals.map(function(x){return x.val;}),backgroundColor:typeVals.map(function(x){return INV_TYPES[x.type].color+'cc';}),borderColor:'#161614',borderWidth:2}]},
       options:{responsive:true,cutout:'65%',plugins:{legend:{position:'bottom',labels:{color:'#e8e6df',font:{family:'Jost',size:11},padding:10,boxWidth:10}}}}
     });
-    return()=>{if(pieInst.current){pieInst.current.destroy();pieInst.current=null;}};
+    return function(){if(pieInst.current){pieInst.current.destroy();pieInst.current=null;}};
   },[investments]);
 
   return (
     <div className="pad anim">
-      {/* Summary card */}
       <div style={{background:'var(--surface)',borderRadius:16,border:'1px solid var(--border)',padding:18,marginBottom:16}}>
         <div style={{fontFamily:"'Jost',sans-serif",fontSize:11,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10}}>Portafoglio</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
-          <div>
-            <div style={{fontSize:11,color:'var(--muted)',marginBottom:3}}>Investito</div>
-            <div style={{fontFamily:"'Jost',sans-serif",fontSize:22,fontWeight:700,color:'var(--text)'}}>€{totalInvested.toFixed(2)}</div>
-          </div>
-          <div>
-            <div style={{fontSize:11,color:'var(--muted)',marginBottom:3}}>Valore attuale</div>
-            <div style={{fontFamily:"'Jost',sans-serif",fontSize:22,fontWeight:700,color:invColor}}>€{totalCurrent.toFixed(2)}</div>
-          </div>
+          <div><div style={{fontSize:11,color:'var(--muted)',marginBottom:3}}>Investito</div><div style={{fontFamily:"'Jost',sans-serif",fontSize:22,fontWeight:700,color:'var(--text)'}}>€{totalInvested.toFixed(2)}</div></div>
+          <div><div style={{fontSize:11,color:'var(--muted)',marginBottom:3}}>Valore attuale</div><div style={{fontFamily:"'Jost',sans-serif",fontSize:22,fontWeight:700,color:'#7aba7a'}}>€{totalCurrent.toFixed(2)}</div></div>
         </div>
-        <div style={{padding:'12px 16px',borderRadius:12,
-          background:totalGain>=0?'#1a142822':'#1e0a0a22',
-          border:`1px solid ${totalGain>=0?invColor+'44':'#e0707044'}`,
-          display:'flex',alignItems:'center',gap:12,marginBottom:14}}>
-          <div style={{flex:1}}>
-            <div style={{fontSize:11,color:'var(--muted)',marginBottom:2}}>Gain / Loss totale</div>
-            <div style={{fontFamily:"'Jost',sans-serif",fontSize:26,fontWeight:700,color:totalGain>=0?invColor:'#e07070'}}>
-              {totalGain>=0?'+':''}€{totalGain.toFixed(2)}
-            </div>
-          </div>
-          <div style={{fontFamily:"'Jost',sans-serif",fontSize:20,fontWeight:700,color:totalGain>=0?invColor:'#e07070'}}>
-            {totalGain>=0?'+':''}{totalGainPct.toFixed(2)}%
-          </div>
+        <div style={{padding:'12px 16px',borderRadius:12,background:totalGain>=0?'#1a281422':'#1e0a0a22',border:'1px solid '+(totalGain>=0?'#7aba7a44':'#e0707044'),display:'flex',alignItems:'center',gap:12,marginBottom:14}}>
+          <div style={{flex:1}}><div style={{fontSize:11,color:'var(--muted)',marginBottom:2}}>Gain / Loss totale</div><div style={{fontFamily:"'Jost',sans-serif",fontSize:26,fontWeight:700,color:totalGain>=0?'#7aba7a':'#e07070'}}>{totalGain>=0?'+':''}€{totalGain.toFixed(2)}</div></div>
+          <div style={{fontFamily:"'Jost',sans-serif",fontSize:20,fontWeight:700,color:totalGain>=0?'#7aba7a':'#e07070'}}>{totalGain>=0?'+':''}{totalGainPct.toFixed(2)}%</div>
         </div>
-        {investments.length>0&&(
-          <>
-            <div style={{fontSize:11,color:'var(--muted)',marginBottom:8}}>Allocazione</div>
-            <canvas ref={pieRef} style={{maxHeight:160}}/>
-          </>
-        )}
+        {investments.length>0&&(<><div style={{fontSize:11,color:'var(--muted)',marginBottom:8}}>Allocazione</div><canvas ref={pieRef} style={{maxHeight:160}}/></>)}
       </div>
 
-      {/* Add button */}
-      <button onClick={onAdd} style={{width:'100%',padding:'12px',borderRadius:12,border:`1px dashed ${invColor}`,
-        background:invColor+'11',color:invColor,fontFamily:"'Jost',sans-serif",fontSize:14,cursor:'pointer',marginBottom:16}}>
-        + Nuova posizione
-      </button>
+      <button onClick={onAdd} style={{width:'100%',padding:'12px',borderRadius:12,border:'1px dashed #7aba7a',background:'#7aba7a11',color:'#7aba7a',fontFamily:"'Jost',sans-serif",fontSize:14,cursor:'pointer',marginBottom:16}}>+ Nuova posizione</button>
 
-      {/* List */}
       {investments.length===0
         ? <div style={{color:'var(--faint)',textAlign:'center',padding:'40px 0',fontFamily:"'Jost',sans-serif",fontSize:18}}>Nessun investimento</div>
-        : investments.map(inv=>{
-          const current  = inv.currentPrice||inv.buyPrice;
-          const invested = inv.buyPrice*inv.quantity;
-          const value    = current*inv.quantity;
-          const gain     = value-invested;
-          const gainPct  = invested>0?(gain/invested*100):0;
-          const isPos    = gain>=0;
-          const lastUpd  = inv.lastUpdated?new Date(inv.lastUpdated).toLocaleDateString('it-IT',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):null;
+        : investments.map(function(inv){
+          const tColor  = (INV_TYPES[inv.type]&&INV_TYPES[inv.type].color)||'#9b8ec4';
+          const qty     = inv.quantity||1;
+          const current = inv.currentPrice||inv.buyPrice;
+          const invested= inv.buyPrice*qty;
+          const value   = current*qty;
+          const gain    = value-invested;
+          const gainPct = invested>0?(gain/invested*100):0;
+          const isPos   = gain>=0;
+          const lastUpd = inv.lastUpdated?new Date(inv.lastUpdated).toLocaleDateString('it-IT',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):null;
           return (
-            <div key={inv.id} style={{background:'var(--surface)',borderRadius:16,border:'1px solid var(--border)',marginBottom:10,padding:16}}>
+            <div key={inv.id} style={{background:'var(--surface)',borderRadius:16,border:'1px solid '+tColor+'33',marginBottom:10,padding:16}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
                 <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3,flexWrap:'wrap'}}>
                     <span style={{fontFamily:"'Jost',sans-serif",fontSize:18,fontWeight:700,color:'var(--text)'}}>{inv.ticker}</span>
-                    <span style={{fontSize:10,padding:'2px 7px',borderRadius:20,border:`1px solid ${invColor}44`,color:invColor,fontFamily:"'Jost',sans-serif",flexShrink:0}}>{inv.type}</span>
+                    <span style={{fontSize:10,padding:'2px 7px',borderRadius:20,border:'1px solid '+tColor+'44',color:tColor,fontFamily:"'Jost',sans-serif",flexShrink:0}}>{inv.type}</span>
+                    {inv.recurring&&<span style={{fontSize:10,padding:'2px 7px',borderRadius:20,border:'1px solid #6aadcf44',color:'#6aadcf',fontFamily:"'Jost',sans-serif",flexShrink:0}}>🔁 {inv.recurringPeriod||'mensile'}</span>}
                   </div>
                   {inv.name&&<div style={{fontSize:12,color:'var(--muted)',marginBottom:2}}>{inv.name}</div>}
                   <div style={{fontSize:11,color:'var(--faint)'}}>
-                    {inv.quantity} pz · €{inv.buyPrice.toFixed(2)} acquisto
-                    {lastUpd&&<><br/>aggiornato {lastUpd}</>}
+                    {inv.quantity?inv.quantity+' pz · ':''}€{inv.buyPrice.toFixed(2)} acquisto
+                    {lastUpd&&<span><br/>aggiornato {lastUpd}</span>}
                   </div>
                 </div>
                 <div style={{textAlign:'right',flexShrink:0,marginLeft:12}}>
-                  <div style={{fontFamily:"'Jost',sans-serif",fontSize:20,fontWeight:700,color:invColor}}>€{value.toFixed(2)}</div>
-                  <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,fontWeight:600,color:isPos?invColor:'#e07070'}}>
-                    {isPos?'+':''}{gainPct.toFixed(2)}%
-                  </div>
-                  <div style={{fontSize:12,color:isPos?invColor:'#e07070'}}>
-                    {isPos?'+':''}€{gain.toFixed(2)}
-                  </div>
+                  <div style={{fontFamily:"'Jost',sans-serif",fontSize:20,fontWeight:700,color:tColor}}>€{value.toFixed(2)}</div>
+                  <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,fontWeight:600,color:isPos?'#7aba7a':'#e07070'}}>{isPos?'+':''}{gainPct.toFixed(2)}%</div>
+                  <div style={{fontSize:12,color:isPos?'#7aba7a':'#e07070'}}>{isPos?'+':''}€{gain.toFixed(2)}</div>
                 </div>
               </div>
               <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
                 <button onClick={()=>onRefresh(inv)} style={{padding:'7px',borderRadius:8,border:'1px solid var(--border)',background:'var(--surface2)',color:'var(--muted)',fontFamily:"'Jost',sans-serif",fontSize:11,cursor:'pointer'}}>🔄 Live</button>
-                <button onClick={()=>onEdit(inv)} style={{padding:'7px',borderRadius:8,border:`1px solid ${invColor}44`,background:invColor+'11',color:invColor,fontFamily:"'Jost',sans-serif",fontSize:11,cursor:'pointer'}}>Modifica</button>
+                <button onClick={()=>onEdit(inv)} style={{padding:'7px',borderRadius:8,border:'1px solid '+tColor+'44',background:tColor+'11',color:tColor,fontFamily:"'Jost',sans-serif",fontSize:11,cursor:'pointer'}}>Modifica</button>
                 <button onClick={()=>onSell(inv)} style={{padding:'7px',borderRadius:8,border:'1px solid #e0707044',background:'#e0707011',color:'#e07070',fontFamily:"'Jost',sans-serif",fontSize:11,cursor:'pointer'}}>Vendi</button>
               </div>
             </div>
@@ -466,28 +439,50 @@ function ExpInvestimenti({investments, onAdd, onEdit, onSell, onRefresh}){
    MODAL: Investment
 ════════════════════════════════════════ */
 function ExpInvestmentModal({inv, onSave, onDelete, onClose}){
-  const invColor = '#9b8ec4';
   const isNew = !inv.id;
-  const [ticker,  setTicker]  = useState(inv.ticker||'');
-  const [name,    setName]    = useState(inv.name||'');
-  const [type,    setType]    = useState(inv.type||'ETF');
-  const [qty,     setQty]     = useState(inv.quantity?String(inv.quantity):'');
-  const [buyP,    setBuyP]    = useState(inv.buyPrice?String(inv.buyPrice):'');
-  const [curP,    setCurP]    = useState(inv.currentPrice?String(inv.currentPrice):'');
-  const [date,    setDate]    = useState(inv.date||new Date().toISOString().slice(0,10));
+  const savedPositions = (LS.get('ms_expenses_inv_positions')||[]);
+  const [ticker,    setTicker]    = useState(inv.ticker||'');
+  const [name,      setName]      = useState(inv.name||'');
+  const [type,      setType]      = useState(inv.type||'ETF');
+  const [qty,       setQty]       = useState(inv.quantity?String(inv.quantity):'');
+  const [buyP,      setBuyP]      = useState(inv.buyPrice?String(inv.buyPrice):'');
+  const [curP,      setCurP]      = useState(inv.currentPrice?String(inv.currentPrice):'');
+  const [date,      setDate]      = useState(inv.date||new Date().toISOString().slice(0,10));
+  const [recurring, setRecurring] = useState(inv.recurring||false);
+  const [recPeriod, setRecPeriod] = useState(inv.recurringPeriod||'mensile');
+  const [showSaved, setShowSaved] = useState(false);
+
+  const tColor = (INV_TYPES[type]&&INV_TYPES[type].color)||'#9b8ec4';
+
+  function pickSaved(pos){
+    setTicker(pos.ticker); setName(pos.name||''); setType(pos.type||'ETF');
+    setShowSaved(false);
+  }
 
   function save(){
-    if(!ticker.trim()||!qty||!buyP) return;
+    if(!ticker.trim()) return;
+    if(!qty && !buyP) return;
+    const buyPrice = parseFloat(buyP)||0;
+    const quantity = parseFloat(qty)||null;
+    // Save to positions library
+    const positions = LS.get('ms_expenses_inv_positions')||[];
+    const exists = positions.find(function(p){return p.ticker===ticker.trim().toUpperCase();});
+    if(!exists){
+      positions.push({ticker:ticker.trim().toUpperCase(),name:name.trim(),type});
+      LS.set('ms_expenses_inv_positions',positions);
+    }
     onSave({
       id: inv.id||uuid(),
       ticker: ticker.trim().toUpperCase(),
       name: name.trim(),
       type,
-      quantity: parseFloat(qty),
-      buyPrice: parseFloat(buyP),
+      quantity,
+      buyPrice,
       currentPrice: parseFloat(curP)||null,
       date: new Date(date+'T12:00:00').toISOString(),
       lastUpdated: curP ? new Date().toISOString() : null,
+      recurring,
+      recurringPeriod: recurring?recPeriod:null,
     });
   }
 
@@ -497,17 +492,43 @@ function ExpInvestmentModal({inv, onSave, onDelete, onClose}){
         <div style={{fontFamily:"'Jost',sans-serif",fontSize:18,fontWeight:700,color:'var(--text)',marginBottom:20}}>{isNew?'Nuova posizione':'Modifica posizione'}</div>
 
         {/* Type toggle */}
-        <div style={{display:'flex',gap:8,marginBottom:14}}>
-          {['ETF','Azione'].map(t=>(
-            <button key={t} onClick={()=>setType(t)} style={{flex:1,padding:'9px',borderRadius:10,
-              border:`1px solid ${type===t?invColor:'var(--border)'}`,
-              background:type===t?invColor+'22':'var(--surface2)',
-              color:type===t?invColor:'var(--muted)',
-              fontFamily:"'Jost',sans-serif",fontSize:13,cursor:'pointer',transition:'all .2s'}}>
-              {t==='ETF'?'📈 ETF / Fondo':'📊 Azione'}
-            </button>
-          ))}
+        <div style={{display:'flex',gap:6,marginBottom:14}}>
+          {Object.keys(INV_TYPES).map(function(t){
+            const tc = INV_TYPES[t].color;
+            return(
+              <button key={t} onClick={()=>setType(t)} style={{flex:1,padding:'8px 4px',borderRadius:10,
+                border:'1px solid '+(type===t?tc:'var(--border)'),
+                background:type===t?tc+'22':'var(--surface2)',
+                color:type===t?tc:'var(--muted)',
+                fontFamily:"'Jost',sans-serif",fontSize:11,cursor:'pointer',transition:'all .2s'}}>
+                {INV_TYPES[t].label}
+              </button>
+            );
+          })}
         </div>
+
+        {/* Saved positions */}
+        {savedPositions.length>0&&(
+          <div style={{marginBottom:10}}>
+            <button onClick={()=>setShowSaved(!showSaved)} style={{fontSize:12,color:'var(--muted)',background:'none',border:'none',cursor:'pointer',padding:0,fontFamily:"'Jost',sans-serif"}}>
+              {showSaved?'▲':'▼'} Posizioni salvate ({savedPositions.length})
+            </button>
+            {showSaved&&(
+              <div style={{marginTop:8,display:'flex',flexWrap:'wrap',gap:6}}>
+                {savedPositions.map(function(p){
+                  const pc=(INV_TYPES[p.type]&&INV_TYPES[p.type].color)||'#9b8ec4';
+                  return(
+                    <button key={p.ticker} onClick={()=>pickSaved(p)}
+                      style={{padding:'4px 10px',borderRadius:20,border:'1px solid '+pc+'44',background:pc+'11',
+                        color:pc,fontFamily:"'Jost',sans-serif",fontSize:12,cursor:'pointer'}}>
+                      {p.ticker}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
 
         <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Ticker (es. VWCE, AAPL)</label>
         <input className="exp-note-inp" value={ticker} onChange={e=>setTicker(e.target.value)} placeholder="VWCE"
@@ -519,28 +540,51 @@ function ExpInvestmentModal({inv, onSave, onDelete, onClose}){
 
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8,marginBottom:10}}>
           <div>
-            <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Quantità</label>
+            <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Quantità <span style={{color:'var(--faint)'}}>*</span></label>
             <input className="exp-note-inp" type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder="10"
               style={{width:'100%',boxSizing:'border-box',marginTop:6,color:'var(--text)'}}/>
           </div>
           <div>
-            <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Prezzo acquisto €</label>
+            <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Prezzo acquisto € <span style={{color:'var(--faint)'}}>*</span></label>
             <input className="exp-note-inp" type="number" value={buyP} onChange={e=>setBuyP(e.target.value)} placeholder="98.50"
               style={{width:'100%',boxSizing:'border-box',marginTop:6,color:'var(--text)'}}/>
           </div>
         </div>
+        <div style={{fontSize:11,color:'var(--faint)',marginBottom:10,marginTop:-4}}>* Ne basta uno dei due</div>
 
-        <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Prezzo attuale € (manuale, opzionale)</label>
-        <input className="exp-note-inp" type="number" value={curP} onChange={e=>setCurP(e.target.value)} placeholder="Lascia vuoto per usare live"
+        <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Prezzo attuale € (opzionale)</label>
+        <input className="exp-note-inp" type="number" value={curP} onChange={e=>setCurP(e.target.value)} placeholder="Lascia vuoto per live"
           style={{width:'100%',boxSizing:'border-box',marginTop:6,marginBottom:10,color:'var(--text)'}}/>
 
         <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Data acquisto</label>
         <input type="date" className="exp-note-inp" value={date} onChange={e=>setDate(e.target.value)}
-          style={{width:'100%',boxSizing:'border-box',marginTop:6,marginBottom:20,color:'var(--text)'}}/>
+          style={{width:'100%',boxSizing:'border-box',marginTop:6,marginBottom:14,color:'var(--text)'}}/>
+
+        {/* Recurring toggle */}
+        <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:recurring?10:20,padding:'10px 12px',borderRadius:10,background:'var(--surface2)',border:'1px solid var(--border)'}}>
+          <button onClick={()=>setRecurring(!recurring)} style={{width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',
+            background:recurring?tColor:'var(--border)',position:'relative',transition:'background .2s',flexShrink:0}}>
+            <span style={{position:'absolute',top:2,left:recurring?18:2,width:16,height:16,borderRadius:'50%',background:'#fff',transition:'left .2s',display:'block'}}/>
+          </button>
+          <span style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:recurring?'var(--text)':'var(--muted)'}}>Acquisto ricorrente</span>
+        </div>
+        {recurring&&(
+          <div style={{display:'flex',gap:6,marginBottom:20}}>
+            {['mensile','trimestrale','annuale'].map(function(p){
+              return(
+                <button key={p} onClick={()=>setRecPeriod(p)} style={{flex:1,padding:'7px',borderRadius:9,border:'1px solid '+(recPeriod===p?tColor:'var(--border)'),
+                  background:recPeriod===p?tColor+'22':'var(--surface2)',color:recPeriod===p?tColor:'var(--muted)',
+                  fontFamily:"'Jost',sans-serif",fontSize:12,cursor:'pointer'}}>
+                  {p}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <div style={{display:'grid',gridTemplateColumns:isNew?'1fr':'1fr 1fr',gap:8,marginBottom:8}}>
           {!isNew&&<button onClick={()=>onDelete(inv.id)} style={{padding:12,borderRadius:12,border:'1px solid #e0707066',background:'#e0707018',color:'#e07070',fontFamily:"'Jost',sans-serif",fontWeight:600,cursor:'pointer'}}>Elimina</button>}
-          <button onClick={save} style={{padding:12,borderRadius:12,border:'none',background:invColor,color:'#0b0c09',fontFamily:"'Jost',sans-serif",fontWeight:700,cursor:'pointer'}}>{isNew?'Aggiungi':'Salva'}</button>
+          <button onClick={save} style={{padding:12,borderRadius:12,border:'none',background:tColor,color:'#0b0c09',fontFamily:"'Jost',sans-serif",fontWeight:700,cursor:'pointer'}}>{isNew?'Aggiungi':'Salva'}</button>
         </div>
         <button onClick={onClose} style={{width:'100%',padding:10,borderRadius:12,border:'1px solid var(--border)',background:'transparent',color:'var(--muted)',fontFamily:"'Jost',sans-serif",cursor:'pointer'}}>Annulla</button>
       </div>
@@ -1045,6 +1089,8 @@ function ExpensesModule({meta}){
         {/* ── MOVIMENTI ── */}
         {tab==='movimenti'&&(
           <div className="pad anim">
+            <div className="greeting">I tuoi<br/><span>movimenti</span></div>
+            <div className="subhead">Storico entrate e uscite</div>
             {/* Inner toggle */}
             <div style={{display:'flex',gap:4,marginBottom:20,background:'var(--surface2)',borderRadius:12,padding:4}}>
               {['storico','grafici'].map(s=>(
@@ -1165,6 +1211,8 @@ function ExpensesModule({meta}){
         {/* ── CONTI ── */}
         {tab==='conti'&&(
           <div className="pad anim">
+            <div className="greeting">I tuoi<br/><span>conti</span></div>
+            <div className="subhead">Liquidità e saldi</div>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
               <div>
                 <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.06em'}}>Liquidità totale</div>
@@ -1237,13 +1285,17 @@ function ExpensesModule({meta}){
         )}
         {/* ── INVESTIMENTI ── */}
         {tab==='investimenti'&&(
-          <ExpInvestimenti
+          <div className="pad anim">
+            <div className="greeting">I tuoi<br/><span>investimenti</span></div>
+            <div className="subhead">Portafoglio e performance</div>
+            <ExpInvestimenti
             investments={investments}
-            onAdd={()=>setEditingInv({id:null,ticker:'',name:'',type:'ETF',quantity:'',buyPrice:'',currentPrice:'',date:new Date().toISOString().slice(0,10)})}
-            onEdit={inv=>setEditingInv({...inv,quantity:String(inv.quantity),buyPrice:String(inv.buyPrice),currentPrice:String(inv.currentPrice||''),date:inv.date?.slice(0,10)||new Date().toISOString().slice(0,10)})}
+            onAdd={()=>setEditingInv({id:null,ticker:'',name:'',type:'ETF',quantity:'',buyPrice:'',currentPrice:'',date:new Date().toISOString().slice(0,10),recurring:false,recurringPeriod:'mensile'})}
+            onEdit={inv=>setEditingInv({...inv,quantity:inv.quantity?String(inv.quantity):'',buyPrice:String(inv.buyPrice),currentPrice:String(inv.currentPrice||''),date:(inv.date&&inv.date.slice(0,10))||new Date().toISOString().slice(0,10),recurring:inv.recurring||false,recurringPeriod:inv.recurringPeriod||'mensile'})}
             onSell={inv=>setSellingInv({...inv,sellQty:'',sellPrice:String(inv.currentPrice||inv.buyPrice)})}
             onRefresh={refreshPrice}
           />
+          </div>
         )}
       </div>
 
