@@ -350,9 +350,13 @@ function ExpGrafici({expenses, ACC, expCats}){
 /* ════════════════════════════════════════
    TAB: Investimenti
 ════════════════════════════════════════ */
-function ExpInvestimenti({investments, onAdd, onEdit, onSell, onRefresh}){
-  const pieRef  = useRef(null);
-  const pieInst = useRef(null);
+function ExpInvestimenti({investments, invTxns, invSnapshots, onAdd, onEdit, onSell, onRefresh, onSaveSnapshot, accounts}){
+  const pieRef   = useRef(null);
+  const pieInst  = useRef(null);
+  const snapRef  = useRef(null);
+  const snapInst = useRef(null);
+  const [expandedInv, setExpandedInv] = useState(null);
+  const [snapPrices,  setSnapPrices]  = useState({});
 
   const totalInvested = investments.reduce(function(s,i){return s+i.buyPrice*(i.quantity||1);},0);
   const totalCurrent  = investments.reduce(function(s,i){return s+(i.currentPrice||i.buyPrice)*(i.quantity||1);},0);
@@ -372,8 +376,50 @@ function ExpInvestimenti({investments, onAdd, onEdit, onSell, onRefresh}){
     return function(){if(pieInst.current){pieInst.current.destroy();pieInst.current=null;}};
   },[investments]);
 
+  useEffect(function(){
+    if(!snapRef.current||typeof Chart==='undefined') return;
+    if(snapInst.current){snapInst.current.destroy();snapInst.current=null;}
+    if(!invSnapshots||invSnapshots.length===0) return;
+    const sorted = invSnapshots.slice().sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+    snapInst.current = new Chart(snapRef.current,{
+      type:'line',
+      data:{
+        labels:sorted.map(function(s){return new Date(s.date).toLocaleDateString('it-IT',{day:'2-digit',month:'short'});}),
+        datasets:[{label:'Valore portafoglio',data:sorted.map(function(s){return s.total;}),
+          borderColor:'#7aba7a',backgroundColor:'#7aba7a22',fill:true,tension:0.3,pointRadius:4,
+          pointBackgroundColor:'#7aba7a',borderWidth:2}]
+      },
+      options:{responsive:true,scales:{
+        y:{ticks:{color:'#6b6a5e',font:{family:'Jost',size:11},callback:function(v){return '€'+v.toFixed(0);}},grid:{color:'#25252166'}},
+        x:{ticks:{color:'#6b6a5e',font:{family:'Jost',size:11}},grid:{display:false}}
+      },plugins:{legend:{labels:{color:'#e8e6df',font:{family:'Jost',size:11},boxWidth:10}}}}
+    });
+    return function(){if(snapInst.current){snapInst.current.destroy();snapInst.current=null;}};
+  },[invSnapshots]);
+
+  function handleSaveSnapshot(){
+    const prices = {};
+    investments.forEach(function(inv){
+      const v = parseFloat(snapPrices[inv.ticker]);
+      prices[inv.ticker] = isNaN(v) ? (inv.currentPrice||inv.buyPrice||0) : v;
+    });
+    const total = investments.reduce(function(s,inv){
+      return s + (prices[inv.ticker]||0)*(inv.quantity||1);
+    },0);
+    const snap = {id:uuid(), date:new Date().toISOString(), prices, total};
+    onSaveSnapshot(snap);
+    setSnapPrices({});
+  }
+
+  function accName(id){
+    if(!id||!accounts) return '';
+    const a = accounts.find(function(a){return a.id===id;});
+    return a?a.name:'';
+  }
+
   return (
     <div className="pad anim">
+      {/* ── Portfolio summary ── */}
       <div style={{background:'var(--surface)',borderRadius:16,border:'1px solid var(--border)',padding:18,marginBottom:16}}>
         <div style={{fontFamily:"'Jost',sans-serif",fontSize:11,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10}}>Portafoglio</div>
         <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:12,marginBottom:14}}>
@@ -401,36 +447,129 @@ function ExpInvestimenti({investments, onAdd, onEdit, onSell, onRefresh}){
           const gainPct = invested>0?(gain/invested*100):0;
           const isPos   = gain>=0;
           const lastUpd = inv.lastUpdated?new Date(inv.lastUpdated).toLocaleDateString('it-IT',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):null;
+          const isExpanded = expandedInv===inv.id;
+          const txns = (invTxns||[]).filter(function(t){return t.invId===inv.id;}).sort(function(a,b){return new Date(b.date)-new Date(a.date);});
+
           return (
-            <div key={inv.id} style={{background:'var(--surface)',borderRadius:16,border:'1px solid '+tColor+'33',marginBottom:10,padding:16}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3,flexWrap:'wrap'}}>
-                    <span style={{fontFamily:"'Jost',sans-serif",fontSize:18,fontWeight:700,color:'var(--text)'}}>{inv.ticker}</span>
-                    <span style={{fontSize:10,padding:'2px 7px',borderRadius:20,border:'1px solid '+tColor+'44',color:tColor,fontFamily:"'Jost',sans-serif",flexShrink:0}}>{inv.type}</span>
-                    {inv.recurring&&<span style={{fontSize:10,padding:'2px 7px',borderRadius:20,border:'1px solid #6aadcf44',color:'#6aadcf',fontFamily:"'Jost',sans-serif",flexShrink:0}}>🔁 {inv.recurringPeriod||'mensile'}</span>}
+            <div key={inv.id} style={{background:'var(--surface)',borderRadius:16,border:'1px solid '+tColor+'33',marginBottom:10,overflow:'hidden'}}>
+              <div style={{padding:16}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:3,flexWrap:'wrap'}}>
+                      <span style={{fontFamily:"'Jost',sans-serif",fontSize:18,fontWeight:700,color:'var(--text)'}}>{inv.ticker}</span>
+                      <span style={{fontSize:10,padding:'2px 7px',borderRadius:20,border:'1px solid '+tColor+'44',color:tColor,fontFamily:"'Jost',sans-serif",flexShrink:0}}>{inv.type}</span>
+                      {inv.recurring&&<span style={{fontSize:10,padding:'2px 7px',borderRadius:20,border:'1px solid #6aadcf44',color:'#6aadcf',fontFamily:"'Jost',sans-serif",flexShrink:0}}>🔁 {inv.recurringPeriod||'ricorrente'}</span>}
+                    </div>
+                    {inv.name&&<div style={{fontSize:12,color:'var(--muted)',marginBottom:2}}>{inv.name}</div>}
+                    <div style={{fontSize:11,color:'var(--faint)'}}>
+                      {inv.quantity?inv.quantity+' pz · ':''}€{(inv.buyPrice||0).toFixed(2)} acquisto
+                      {lastUpd&&<span><br/>aggiornato {lastUpd}</span>}
+                    </div>
                   </div>
-                  {inv.name&&<div style={{fontSize:12,color:'var(--muted)',marginBottom:2}}>{inv.name}</div>}
-                  <div style={{fontSize:11,color:'var(--faint)'}}>
-                    {inv.quantity?inv.quantity+' pz · ':''}€{inv.buyPrice.toFixed(2)} acquisto
-                    {lastUpd&&<span><br/>aggiornato {lastUpd}</span>}
+                  <div style={{textAlign:'right',flexShrink:0,marginLeft:12}}>
+                    <div style={{fontFamily:"'Jost',sans-serif",fontSize:20,fontWeight:700,color:tColor}}>€{value.toFixed(2)}</div>
+                    <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,fontWeight:600,color:isPos?'#7aba7a':'#e07070'}}>{isPos?'+':''}{gainPct.toFixed(2)}%</div>
+                    <div style={{fontSize:12,color:isPos?'#7aba7a':'#e07070'}}>{isPos?'+':''}€{gain.toFixed(2)}</div>
                   </div>
                 </div>
-                <div style={{textAlign:'right',flexShrink:0,marginLeft:12}}>
-                  <div style={{fontFamily:"'Jost',sans-serif",fontSize:20,fontWeight:700,color:tColor}}>€{value.toFixed(2)}</div>
-                  <div style={{fontFamily:"'Jost',sans-serif",fontSize:12,fontWeight:600,color:isPos?'#7aba7a':'#e07070'}}>{isPos?'+':''}{gainPct.toFixed(2)}%</div>
-                  <div style={{fontSize:12,color:isPos?'#7aba7a':'#e07070'}}>{isPos?'+':''}€{gain.toFixed(2)}</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr 1fr',gap:6,marginBottom:8}}>
+                  <button onClick={function(){onRefresh(inv);}} style={{padding:'7px',borderRadius:8,border:'1px solid var(--border)',background:'var(--surface2)',color:'var(--muted)',fontFamily:"'Jost',sans-serif",fontSize:11,cursor:'pointer'}}>🔄 Live</button>
+                  <button onClick={function(){onEdit(inv);}} style={{padding:'7px',borderRadius:8,border:'1px solid '+tColor+'44',background:tColor+'11',color:tColor,fontFamily:"'Jost',sans-serif",fontSize:11,cursor:'pointer'}}>Modifica</button>
+                  <button onClick={function(){onSell(inv);}} style={{padding:'7px',borderRadius:8,border:'1px solid #e0707044',background:'#e0707011',color:'#e07070',fontFamily:"'Jost',sans-serif",fontSize:11,cursor:'pointer'}}>Vendi</button>
+                  <button onClick={function(){setExpandedInv(isExpanded?null:inv.id);}}
+                    style={{padding:'7px',borderRadius:8,border:'1px solid var(--border)',background:isExpanded?'var(--border)':'var(--surface2)',color:'var(--muted)',fontFamily:"'Jost',sans-serif",fontSize:11,cursor:'pointer'}}>
+                    {isExpanded?'▲':'▼'} Storico
+                  </button>
                 </div>
               </div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:6}}>
-                <button onClick={()=>onRefresh(inv)} style={{padding:'7px',borderRadius:8,border:'1px solid var(--border)',background:'var(--surface2)',color:'var(--muted)',fontFamily:"'Jost',sans-serif",fontSize:11,cursor:'pointer'}}>🔄 Live</button>
-                <button onClick={()=>onEdit(inv)} style={{padding:'7px',borderRadius:8,border:'1px solid '+tColor+'44',background:tColor+'11',color:tColor,fontFamily:"'Jost',sans-serif",fontSize:11,cursor:'pointer'}}>Modifica</button>
-                <button onClick={()=>onSell(inv)} style={{padding:'7px',borderRadius:8,border:'1px solid #e0707044',background:'#e0707011',color:'#e07070',fontFamily:"'Jost',sans-serif",fontSize:11,cursor:'pointer'}}>Vendi</button>
-              </div>
+
+              {/* ── Storico accordion ── */}
+              {isExpanded&&(
+                <div style={{borderTop:'1px solid var(--border)',padding:'12px 16px'}}>
+                  <div style={{fontFamily:"'Jost',sans-serif",fontSize:11,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:10}}>Storico operazioni</div>
+                  {txns.length===0
+                    ? <div style={{color:'var(--faint)',fontFamily:"'Jost',sans-serif",fontSize:13,textAlign:'center',padding:'12px 0'}}>Nessuna operazione registrata</div>
+                    : txns.map(function(txn){
+                      const isSell = txn.type==='sell';
+                      const rowColor = isSell?'#e07070':'#7aba7a';
+                      const accN = accName(txn.accountId);
+                      return (
+                        <div key={txn.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'8px 0',borderBottom:'1px solid var(--border2)'}}>
+                          <div style={{flex:1,minWidth:0}}>
+                            <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
+                              <span style={{fontSize:10,padding:'2px 7px',borderRadius:20,background:rowColor+'22',border:'1px solid '+rowColor+'44',color:rowColor,fontFamily:"'Jost',sans-serif",flexShrink:0}}>
+                                {isSell?'VENDITA':'ACQUISTO'}
+                              </span>
+                              <span style={{fontSize:11,color:'var(--muted)'}}>{new Date(txn.date).toLocaleDateString('it-IT',{day:'2-digit',month:'short',year:'2-digit'})}</span>
+                            </div>
+                            <div style={{fontSize:12,color:'var(--text)'}}>
+                              {txn.qty} pz · €{(txn.price||0).toFixed(2)}/pz
+                              {accN&&<span style={{color:'var(--faint)'}}> · {accN}</span>}
+                            </div>
+                            {isSell&&txn.realizedGain!==undefined&&(
+                              <div style={{fontSize:11,color:txn.realizedGain>=0?'#7aba7a':'#e07070',marginTop:1}}>
+                                P&amp;L {txn.realizedGain>=0?'+':''}€{txn.realizedGain.toFixed(2)}
+                              </div>
+                            )}
+                          </div>
+                          <div style={{textAlign:'right',flexShrink:0,marginLeft:10}}>
+                            <div style={{fontFamily:"'Jost',sans-serif",fontSize:14,fontWeight:600,color:isSell?'#7aba7a':'#e07070'}}>
+                              {isSell?'+':'−'}€{((txn.price||0)*(txn.qty||0)).toFixed(2)}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })
+                  }
+                </div>
+              )}
             </div>
           );
         })
       }
+
+      {/* ── Snapshot portafoglio ── */}
+      {investments.length>0&&(
+        <div style={{background:'var(--surface)',borderRadius:16,border:'1px solid var(--border)',padding:18,marginTop:8}}>
+          <div style={{fontFamily:"'Jost',sans-serif",fontSize:11,color:'var(--muted)',textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:12}}>Valore portafoglio nel tempo</div>
+
+          {/* Price inputs for snapshot */}
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:12,color:'var(--muted)',marginBottom:8}}>Prezzi attuali per nuovo snapshot:</div>
+            {investments.map(function(inv){
+              return (
+                <div key={inv.ticker} style={{display:'flex',alignItems:'center',gap:8,marginBottom:6}}>
+                  <span style={{fontFamily:"'Jost',sans-serif",fontSize:13,fontWeight:600,color:'var(--text)',width:60,flexShrink:0}}>{inv.ticker}</span>
+                  <input className="exp-note-inp" type="number"
+                    value={snapPrices[inv.ticker]!==undefined?snapPrices[inv.ticker]:String(inv.currentPrice||inv.buyPrice||'')}
+                    onChange={function(e){
+                      const v = e.target.value;
+                      setSnapPrices(function(prev){const n=Object.assign({},prev);n[inv.ticker]=v;return n;});
+                    }}
+                    placeholder={'€'+(inv.currentPrice||inv.buyPrice||0).toFixed(2)}
+                    style={{flex:1,boxSizing:'border-box',color:'var(--text)'}}/>
+                  <span style={{fontSize:11,color:'var(--faint)',flexShrink:0}}>{inv.quantity||1} pz</span>
+                </div>
+              );
+            })}
+          </div>
+          <button onClick={handleSaveSnapshot}
+            style={{width:'100%',padding:'10px',borderRadius:10,border:'none',background:'#7aba7a',color:'#0b0c09',fontFamily:"'Jost',sans-serif",fontWeight:700,fontSize:13,cursor:'pointer',marginBottom:16}}>
+            💾 Salva snapshot
+          </button>
+
+          {/* Line chart */}
+          {invSnapshots&&invSnapshots.length>0&&(
+            <div style={{marginTop:4}}>
+              <div style={{fontSize:12,color:'var(--muted)',marginBottom:8}}>{invSnapshots.length} snapshot salvati</div>
+              <canvas ref={snapRef} style={{maxHeight:200}}/>
+            </div>
+          )}
+          {(!invSnapshots||invSnapshots.length===0)&&(
+            <div style={{textAlign:'center',color:'var(--faint)',fontFamily:"'Jost',sans-serif",fontSize:13,padding:'10px 0'}}>Salva il primo snapshot per vedere il grafico</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -438,7 +577,7 @@ function ExpInvestimenti({investments, onAdd, onEdit, onSell, onRefresh}){
 /* ════════════════════════════════════════
    MODAL: Investment
 ════════════════════════════════════════ */
-function ExpInvestmentModal({inv, onSave, onDelete, onClose}){
+function ExpInvestmentModal({inv, onSave, onDelete, onClose, accounts, defaultAccId}){
   const isNew = !inv.id;
   const savedPositions = (LS.get('ms_expenses_inv_positions')||[]);
   const [ticker,    setTicker]    = useState(inv.ticker||'');
@@ -446,10 +585,12 @@ function ExpInvestmentModal({inv, onSave, onDelete, onClose}){
   const [type,      setType]      = useState(inv.type||'ETF');
   const [qty,       setQty]       = useState(inv.quantity?String(inv.quantity):'');
   const [buyP,      setBuyP]      = useState(inv.buyPrice?String(inv.buyPrice):'');
+  const [carryP,    setCarryP]    = useState(inv.carryingPrice?String(inv.carryingPrice):'');
   const [curP,      setCurP]      = useState(inv.currentPrice?String(inv.currentPrice):'');
   const [date,      setDate]      = useState(inv.date||new Date().toISOString().slice(0,10));
+  const [accId,     setAccId]     = useState(inv.accountId||defaultAccId||(accounts[0]&&accounts[0].id)||'');
   const [recurring, setRecurring] = useState(inv.recurring||false);
-  const [recPeriod, setRecPeriod] = useState(inv.recurringPeriod||'mensile');
+  const [recDays,   setRecDays]   = useState(inv.recurringDays||30);
   const [showSaved, setShowSaved] = useState(false);
 
   const tColor = (INV_TYPES[type]&&INV_TYPES[type].color)||'#9b8ec4';
@@ -478,11 +619,14 @@ function ExpInvestmentModal({inv, onSave, onDelete, onClose}){
       type,
       quantity,
       buyPrice,
+      carryingPrice: parseFloat(carryP)||buyPrice||null,
       currentPrice: parseFloat(curP)||null,
       date: new Date(date+'T12:00:00').toISOString(),
       lastUpdated: curP ? new Date().toISOString() : null,
+      accountId: accId||null,
       recurring,
-      recurringPeriod: recurring?recPeriod:null,
+      recurringDays: recurring?parseInt(recDays)||30:null,
+      recurringPeriod: recurring?('ogni '+recDays+' giorni'):null,
     });
   }
 
@@ -552,33 +696,38 @@ function ExpInvestmentModal({inv, onSave, onDelete, onClose}){
         </div>
         <div style={{fontSize:11,color:'var(--faint)',marginBottom:10,marginTop:-4}}>* Ne basta uno dei due</div>
 
+        <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Prezzo di carico € (per P&amp;L)</label>
+        <input className="exp-note-inp" type="number" value={carryP} onChange={e=>setCarryP(e.target.value)} placeholder="= prezzo acquisto se vuoto"
+          style={{width:'100%',boxSizing:'border-box',marginTop:6,marginBottom:10,color:'var(--text)'}}/>
+
         <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Prezzo attuale € (opzionale)</label>
         <input className="exp-note-inp" type="number" value={curP} onChange={e=>setCurP(e.target.value)} placeholder="Lascia vuoto per live"
           style={{width:'100%',boxSizing:'border-box',marginTop:6,marginBottom:10,color:'var(--text)'}}/>
 
         <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Data acquisto</label>
         <input type="date" className="exp-note-inp" value={date} onChange={e=>setDate(e.target.value)}
-          style={{width:'100%',boxSizing:'border-box',marginTop:6,marginBottom:14,color:'var(--text)'}}/>
+          style={{width:'100%',boxSizing:'border-box',marginTop:6,marginBottom:10,color:'var(--text)'}}/>
+
+        <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Preleva da conto</label>
+        <select className="exp-note-inp" value={accId} onChange={e=>setAccId(e.target.value)}
+          style={{width:'100%',boxSizing:'border-box',marginTop:6,marginBottom:14,color:'var(--text)'}}>
+          {accounts.map(function(a){return <option key={a.id} value={a.id}>{a.name}</option>;})}
+        </select>
 
         {/* Recurring toggle */}
         <div style={{display:'flex',alignItems:'center',gap:10,marginBottom:recurring?10:20,padding:'10px 12px',borderRadius:10,background:'var(--surface2)',border:'1px solid var(--border)'}}>
-          <button onClick={()=>setRecurring(!recurring)} style={{width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',
+          <button onClick={function(){setRecurring(!recurring);}} style={{width:36,height:20,borderRadius:10,border:'none',cursor:'pointer',
             background:recurring?tColor:'var(--border)',position:'relative',transition:'background .2s',flexShrink:0}}>
             <span style={{position:'absolute',top:2,left:recurring?18:2,width:16,height:16,borderRadius:'50%',background:'#fff',transition:'left .2s',display:'block'}}/>
           </button>
           <span style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:recurring?'var(--text)':'var(--muted)'}}>Acquisto ricorrente</span>
         </div>
         {recurring&&(
-          <div style={{display:'flex',gap:6,marginBottom:20}}>
-            {['mensile','trimestrale','annuale'].map(function(p){
-              return(
-                <button key={p} onClick={()=>setRecPeriod(p)} style={{flex:1,padding:'7px',borderRadius:9,border:'1px solid '+(recPeriod===p?tColor:'var(--border)'),
-                  background:recPeriod===p?tColor+'22':'var(--surface2)',color:recPeriod===p?tColor:'var(--muted)',
-                  fontFamily:"'Jost',sans-serif",fontSize:12,cursor:'pointer'}}>
-                  {p}
-                </button>
-              );
-            })}
+          <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:20,padding:'8px 12px',borderRadius:10,background:'var(--surface2)',border:'1px solid var(--border2)'}}>
+            <span style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)',whiteSpace:'nowrap'}}>ogni</span>
+            <input className="exp-note-inp" type="number" value={recDays} onChange={function(e){setRecDays(e.target.value);}}
+              placeholder="30" style={{width:70,boxSizing:'border-box',color:'var(--text)',textAlign:'center'}}/>
+            <span style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)',whiteSpace:'nowrap'}}>giorni</span>
           </div>
         )}
 
@@ -595,31 +744,44 @@ function ExpInvestmentModal({inv, onSave, onDelete, onClose}){
 /* ════════════════════════════════════════
    MODAL: Sell
 ════════════════════════════════════════ */
-function ExpSellModal({inv, onSell, onClose}){
+function ExpSellModal({inv, onSell, onClose, accounts, defaultAccId}){
   const invColor = '#9b8ec4';
-  const [qty,   setQty]   = useState('');
-  const [price, setPrice] = useState(String(inv.currentPrice||inv.buyPrice));
-  const parsedQty = parseFloat(qty)||0;
+  const [qty,      setQty]      = useState('');
+  const [price,    setPrice]    = useState(String(inv.currentPrice||inv.buyPrice||''));
+  const [accId,    setAccId]    = useState(inv.accountId||defaultAccId||(accounts[0]&&accounts[0].id)||'');
+  const [sellDate, setSellDate] = useState(new Date().toISOString().slice(0,10));
+  const parsedQty   = parseFloat(qty)||0;
   const parsedPrice = parseFloat(price)||0;
-  const realizedGain = (parsedPrice - inv.buyPrice)*parsedQty;
+  const carryP      = inv.carryingPrice||inv.buyPrice||0;
+  const realizedGain = (parsedPrice - carryP)*parsedQty;
 
   return (
     <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,.75)',zIndex:200,display:'flex',alignItems:'flex-end'}} onClick={e=>e.target===e.currentTarget&&onClose()}>
       <div style={{background:'var(--surface)',borderRadius:'20px 20px 0 0',width:'100%',padding:24,paddingBottom:44,boxSizing:'border-box'}}>
         <div style={{fontFamily:"'Jost',sans-serif",fontSize:18,fontWeight:700,color:'var(--text)',marginBottom:4}}>Vendi {inv.ticker}</div>
-        <div style={{fontSize:12,color:'var(--muted)',marginBottom:20}}>Hai {inv.quantity} pz · acquisto €{inv.buyPrice.toFixed(2)}</div>
+        <div style={{fontSize:12,color:'var(--muted)',marginBottom:20}}>Hai {inv.quantity||1} pz · carico €{carryP.toFixed(2)}</div>
 
         <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Quantità da vendere</label>
-        <input className="exp-note-inp" type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder={`Max ${inv.quantity}`}
+        <input className="exp-note-inp" type="number" value={qty} onChange={e=>setQty(e.target.value)} placeholder={'Max '+(inv.quantity||1)}
           style={{width:'100%',boxSizing:'border-box',marginTop:6,marginBottom:10,color:'var(--text)'}}/>
 
         <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Prezzo di vendita €</label>
         <input className="exp-note-inp" type="number" value={price} onChange={e=>setPrice(e.target.value)} placeholder="0.00"
+          style={{width:'100%',boxSizing:'border-box',marginTop:6,marginBottom:10,color:'var(--text)'}}/>
+
+        <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Accredita su conto</label>
+        <select className="exp-note-inp" value={accId} onChange={e=>setAccId(e.target.value)}
+          style={{width:'100%',boxSizing:'border-box',marginTop:6,marginBottom:10,color:'var(--text)'}}>
+          {accounts.map(function(a){return <option key={a.id} value={a.id}>{a.name}</option>;})}
+        </select>
+
+        <label style={{fontFamily:"'Jost',sans-serif",fontSize:13,color:'var(--muted)'}}>Data vendita</label>
+        <input type="date" className="exp-note-inp" value={sellDate} onChange={e=>setSellDate(e.target.value)}
           style={{width:'100%',boxSizing:'border-box',marginTop:6,marginBottom:16,color:'var(--text)'}}/>
 
         {parsedQty>0&&parsedPrice>0&&(
           <div style={{padding:'10px 14px',borderRadius:10,background:realizedGain>=0?invColor+'15':'#e0707015',
-            border:`1px solid ${realizedGain>=0?invColor+'44':'#e0707044'}`,marginBottom:16,textAlign:'center'}}>
+            border:'1px solid '+(realizedGain>=0?invColor+'44':'#e0707044'),marginBottom:16,textAlign:'center'}}>
             <div style={{fontSize:11,color:'var(--muted)',marginBottom:2}}>Gain/Loss realizzato</div>
             <div style={{fontFamily:"'Jost',sans-serif",fontSize:22,fontWeight:700,color:realizedGain>=0?invColor:'#e07070'}}>
               {realizedGain>=0?'+':''}€{realizedGain.toFixed(2)}
@@ -627,10 +789,10 @@ function ExpSellModal({inv, onSell, onClose}){
           </div>
         )}
 
-        <button onClick={()=>onSell(inv,qty,price)}
-          disabled={!parsedQty||parsedQty>inv.quantity||!parsedPrice}
+        <button onClick={function(){onSell(inv,qty,price,accId,sellDate);}}
+          disabled={!parsedQty||parsedQty>(inv.quantity||1)||!parsedPrice}
           style={{width:'100%',padding:12,borderRadius:12,border:'none',
-          background:(!parsedQty||parsedQty>inv.quantity||!parsedPrice)?'var(--faint)':'#e07070',
+          background:(!parsedQty||parsedQty>(inv.quantity||1)||!parsedPrice)?'var(--faint)':'#e07070',
           color:'#0b0c09',fontFamily:"'Jost',sans-serif",fontWeight:700,cursor:'pointer',marginBottom:8}}>
           Conferma vendita
         </button>
@@ -657,6 +819,7 @@ function ExpensesModule({meta}){
   const [budgets,   setBudgets]   = useState(()=>LS.get('ms_expenses_budgets')||{});
   const [investments, setInvestments] = useState(()=>LS.get('ms_expenses_investments')||[]);
   const [invTxns,   setInvTxns]   = useState(()=>LS.get('ms_expenses_inv_txns')||[]);
+  const [invSnapshots, setInvSnapshots] = useState(()=>LS.get('ms_expenses_inv_snapshots')||[]);
   const [customCats, setCustomCats] = useState(()=>LS.get('ms_expenses_custom_cats')||{expense:[],income:[]});
 
   /* ── Merged category lists ── */
@@ -859,9 +1022,32 @@ function ExpensesModule({meta}){
   }
 
   function saveInvestment(inv){
-    const exists = investments.find(i=>i.id===inv.id);
-    const newInvs = exists ? investments.map(i=>i.id===inv.id?inv:i) : [inv,...investments];
+    const exists = investments.find(function(i){return i.id===inv.id;});
+    const newInvs = exists ? investments.map(function(i){return i.id===inv.id?inv:i;}) : [inv,...investments];
     setInvestments(newInvs); LS.set('ms_expenses_investments',newInvs);
+
+    if(!exists){
+      // Record buy txn
+      const txn = {id:uuid(), invId:inv.id, ticker:inv.ticker, type:'buy',
+        qty:inv.quantity||1, price:inv.buyPrice||0, carryingPrice:inv.carryingPrice||inv.buyPrice||0,
+        date:inv.date||new Date().toISOString(), accountId:inv.accountId||null};
+      const newTxns = [txn,...invTxns];
+      setInvTxns(newTxns); LS.set('ms_expenses_inv_txns',newTxns);
+
+      // Create expense movement on account
+      if(inv.accountId && inv.buyPrice && inv.quantity){
+        const cost = (inv.buyPrice||0)*(inv.quantity||1);
+        const buyEntry = {
+          id:uuid(), amount:cost, type:'expense', category:'altro',
+          note:'Acquisto '+inv.ticker+' ('+inv.quantity+' pz @ €'+(inv.buyPrice||0).toFixed(2)+')',
+          date:inv.date||new Date().toISOString(), accountId:inv.accountId, recurringId:null
+        };
+        const newExps = [buyEntry,...expenses];
+        setExpenses(newExps); LS.set('ms_expenses',newExps);
+        const newAccs = accounts.map(function(a){return a.id===inv.accountId?{...a,balance:(a.balance||0)-cost}:a;});
+        setAccounts(newAccs); LS.set('ms_expenses_accounts',newAccs);
+      }
+    }
     setEditingInv(null);
   }
 
@@ -870,19 +1056,48 @@ function ExpensesModule({meta}){
     setInvestments(next); LS.set('ms_expenses_investments',next);
   }
 
-  function sellInvestment(inv, qty, pricePerShare){
-    const soldQty = parseFloat(qty);
+  function saveSnapshot(snap){
+    const newSnaps = [snap,...invSnapshots];
+    setInvSnapshots(newSnaps); LS.set('ms_expenses_inv_snapshots',newSnaps);
+  }
+
+  function sellInvestment(inv, qty, pricePerShare, accountId, sellDate){
+    const soldQty   = parseFloat(qty);
     const soldPrice = parseFloat(pricePerShare);
-    if(!soldQty||!soldPrice||soldQty>inv.quantity) return;
-    const realizedGain = (soldPrice - inv.buyPrice) * soldQty;
-    const txn = {id:uuid(), invId:inv.id, ticker:inv.ticker, type:'sell', qty:soldQty, price:soldPrice, realizedGain, date:new Date().toISOString()};
+    if(!soldQty||!soldPrice||soldQty>(inv.quantity||1)) return;
+    const carryP       = inv.carryingPrice||inv.buyPrice||0;
+    const realizedGain = (soldPrice - carryP)*soldQty;
+    const proceeds     = soldPrice*soldQty;
+    const saleDate     = sellDate?new Date(sellDate+'T12:00:00').toISOString():new Date().toISOString();
+
+    // Record sell txn
+    const txn = {id:uuid(), invId:inv.id, ticker:inv.ticker, type:'sell',
+      qty:soldQty, price:soldPrice, carryingPrice:carryP, realizedGain,
+      date:saleDate, accountId:accountId||null};
     const newTxns = [txn,...invTxns];
     setInvTxns(newTxns); LS.set('ms_expenses_inv_txns',newTxns);
-    const remaining = inv.quantity - soldQty;
+
+    // Create income movement on account
+    if(accountId){
+      const saleEntry = {
+        id:uuid(), amount:proceeds, type:'income', category:'interessi',
+        note:'Vendita '+inv.ticker+' ('+soldQty+' pz @ €'+soldPrice.toFixed(2)+')',
+        date:saleDate, accountId:accountId, recurringId:null
+      };
+      const newExps = [saleEntry,...expenses];
+      setExpenses(newExps); LS.set('ms_expenses',newExps);
+      const newAccs = accounts.map(function(a){return a.id===accountId?{...a,balance:(a.balance||0)+proceeds}:a;});
+      setAccounts(newAccs); LS.set('ms_expenses_accounts',newAccs);
+    }
+
+    // Update or close position
+    const remaining = (inv.quantity||1) - soldQty;
     if(remaining<=0){
-      deleteInvestment(inv.id);
+      const next = investments.filter(function(i){return i.id!==inv.id;});
+      setInvestments(next); LS.set('ms_expenses_investments',next);
     } else {
-      saveInvestment({...inv, quantity:remaining});
+      const newInvs = investments.map(function(i){return i.id===inv.id?{...i,quantity:remaining}:i;});
+      setInvestments(newInvs); LS.set('ms_expenses_investments',newInvs);
     }
     setSellingInv(null);
   }
@@ -1290,10 +1505,14 @@ function ExpensesModule({meta}){
             <div className="subhead">Portafoglio e performance</div>
             <ExpInvestimenti
             investments={investments}
-            onAdd={()=>setEditingInv({id:null,ticker:'',name:'',type:'ETF',quantity:'',buyPrice:'',currentPrice:'',date:new Date().toISOString().slice(0,10),recurring:false,recurringPeriod:'mensile'})}
-            onEdit={inv=>setEditingInv({...inv,quantity:inv.quantity?String(inv.quantity):'',buyPrice:String(inv.buyPrice),currentPrice:String(inv.currentPrice||''),date:(inv.date&&inv.date.slice(0,10))||new Date().toISOString().slice(0,10),recurring:inv.recurring||false,recurringPeriod:inv.recurringPeriod||'mensile'})}
-            onSell={inv=>setSellingInv({...inv,sellQty:'',sellPrice:String(inv.currentPrice||inv.buyPrice)})}
+            invTxns={invTxns}
+            invSnapshots={invSnapshots}
+            accounts={accounts}
+            onAdd={function(){setEditingInv({id:null,ticker:'',name:'',type:'ETF',quantity:'',buyPrice:'',carryingPrice:'',currentPrice:'',date:new Date().toISOString().slice(0,10),recurring:false,recurringDays:30,accountId:defaultAccId});}}
+            onEdit={function(inv){setEditingInv({...inv,quantity:inv.quantity?String(inv.quantity):'',buyPrice:String(inv.buyPrice||''),carryingPrice:String(inv.carryingPrice||''),currentPrice:String(inv.currentPrice||''),date:(inv.date&&inv.date.slice(0,10))||new Date().toISOString().slice(0,10),recurring:inv.recurring||false,recurringDays:inv.recurringDays||30,accountId:inv.accountId||defaultAccId});}}
+            onSell={function(inv){setSellingInv({...inv,sellQty:'',sellPrice:String(inv.currentPrice||inv.buyPrice||'')});}}
             onRefresh={refreshPrice}
+            onSaveSnapshot={saveSnapshot}
           />
           </div>
         )}
@@ -1306,10 +1525,10 @@ function ExpensesModule({meta}){
         <ExpRecurringModal rec={editingRec} accounts={accounts} onSave={saveRecurring} onClose={()=>setEditingRec(null)} ACC={ACC}/>
       )}
       {editingInv&&(
-        <ExpInvestmentModal inv={editingInv} onSave={saveInvestment} onDelete={deleteInvestment} onClose={()=>setEditingInv(null)}/>
+        <ExpInvestmentModal inv={editingInv} onSave={saveInvestment} onDelete={deleteInvestment} onClose={()=>setEditingInv(null)} accounts={accounts} defaultAccId={defaultAccId}/>
       )}
       {sellingInv&&(
-        <ExpSellModal inv={sellingInv} onSell={sellInvestment} onClose={()=>setSellingInv(null)}/>
+        <ExpSellModal inv={sellingInv} onSell={sellInvestment} onClose={()=>setSellingInv(null)} accounts={accounts} defaultAccId={defaultAccId}/>
       )}
       {editingCat&&(
         <ExpCatModal

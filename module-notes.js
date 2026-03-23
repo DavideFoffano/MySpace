@@ -2,41 +2,119 @@
    MODULE: NOTES
 ═══════════════════════════════════════════ */
 
-/* ── Note Toolbar ── */
-function NoteToolbar({taRef,content,onChange,color,mode,onToggleMode}){
-  function wrapSel(pre,suf,placeholder){
-    const ta=taRef.current;
-    if(!ta) return;
-    const s=ta.selectionStart,e=ta.selectionEnd;
-    const sel=content.substring(s,e)||placeholder;
-    const next=content.substring(0,s)+pre+sel+suf+content.substring(e);
-    onChange(next);
-    setTimeout(function(){ta.focus();ta.setSelectionRange(s+pre.length,s+pre.length+sel.length);},0);
+/* ── Note Toolbar (WYSIWYG) ── */
+function NoteToolbar({editorRef,color}){
+  function cmd(command){
+    if(!editorRef.current) return;
+    editorRef.current.focus();
+    document.execCommand(command,false,null);
   }
-  function linePrefix(pre){
-    const ta=taRef.current;
-    if(!ta) return;
-    const s=ta.selectionStart;
-    const ls=content.lastIndexOf('\n',s-1)+1;
-    const next=content.substring(0,ls)+pre+content.substring(ls);
-    onChange(next);
-    setTimeout(function(){ta.focus();ta.setSelectionRange(s+pre.length,s+pre.length);},0);
+  function insertHeading(){
+    if(!editorRef.current) return;
+    editorRef.current.focus();
+    document.execCommand('formatBlock',false,'h2');
   }
-  const tb={fontFamily:"'Jost',sans-serif",fontSize:13,fontWeight:600,padding:'5px 10px',borderRadius:6,border:'none',cursor:'pointer',background:'transparent',color:'var(--muted)',lineHeight:1,transition:'color .15s,background .15s'};
-  const tbA={...tb,color:color,background:color+'22'};
+  function insertBullet(){
+    if(!editorRef.current) return;
+    editorRef.current.focus();
+    document.execCommand('insertUnorderedList');
+  }
+  function insertChecklist(){
+    if(!editorRef.current) return;
+    editorRef.current.focus();
+    document.execCommand('insertHTML',false,
+      '<div class="note-check-row"><span class="note-check-box" contenteditable="false" data-checked="false">\u2610</span><span>\u00a0Attivit\u00e0</span></div><div><br/></div>');
+  }
+  var tb={fontFamily:"'Jost',sans-serif",fontSize:13,fontWeight:600,padding:'5px 10px',borderRadius:6,border:'none',cursor:'pointer',background:'transparent',color:'var(--muted)',lineHeight:1};
   return(
     <div style={{display:'flex',alignItems:'center',gap:2,padding:'5px 10px',borderBottom:'1px solid rgba(120,100,60,0.2)'}}>
-      <button style={tb} title="Grassetto" onClick={function(){wrapSel('**','**','testo');}}><b>B</b></button>
-      <button style={{...tb,fontStyle:'italic'}} title="Corsivo" onClick={function(){wrapSel('*','*','testo');}}>I</button>
-      <button style={tb} title="Intestazione" onClick={function(){linePrefix('## ');}}>H</button>
-      <button style={tb} title="Lista puntata" onClick={function(){linePrefix('- ');}}>•—</button>
-      <button style={tb} title="Checklist" onClick={function(){linePrefix('- [ ] ');}}>☑</button>
-      <div style={{flex:1}}/>
-      <button style={mode==='preview'?tbA:tb} title={mode==='preview'?'Torna a modifica':'Anteprima'} onClick={onToggleMode}>
-        {mode==='preview'?'✏️ Modifica':'👁 Anteprima'}
-      </button>
+      <button style={tb} title="Grassetto" onMouseDown={function(e){e.preventDefault();cmd('bold');}}><b>B</b></button>
+      <button style={Object.assign({},tb,{fontStyle:'italic'})} title="Corsivo" onMouseDown={function(e){e.preventDefault();cmd('italic');}}>I</button>
+      <button style={tb} title="Intestazione" onMouseDown={function(e){e.preventDefault();insertHeading();}}>H</button>
+      <button style={tb} title="Lista puntata" onMouseDown={function(e){e.preventDefault();insertBullet();}}>\u2022—</button>
+      <button style={tb} title="Checklist" onMouseDown={function(e){e.preventDefault();insertChecklist();}}>\u2611</button>
     </div>
   );
+}
+
+/* ── WYSIWYG editor ── */
+function NoteWysiwygEditor({editorRef,initialContent,onInput,dark,color}){
+  useEffect(function(){
+    if(editorRef.current){
+      editorRef.current.innerHTML = initialContent||'';
+    }
+  },[]);
+
+  var textColor = dark?'#c8c5bd':'#3a2810';
+  var headColor = dark?'#e8e6df':'#1a1000';
+
+  function handleInput(){
+    if(editorRef.current) onInput(editorRef.current.innerHTML);
+  }
+
+  function handleClick(e){
+    var t=e.target;
+    if(t.classList&&t.classList.contains('note-check-box')){
+      var checked=t.getAttribute('data-checked')==='true';
+      t.setAttribute('data-checked',checked?'false':'true');
+      t.textContent=checked?'\u2610':'\u2611';
+      t.style.color=checked?'var(--muted)':color;
+      var row=t.parentElement;
+      var span=row&&row.querySelector('span:not(.note-check-box)');
+      if(span) span.style.textDecoration=checked?'none':'line-through';
+      if(editorRef.current) onInput(editorRef.current.innerHTML);
+    }
+  }
+
+  var styleStr=
+    '.note-wysiwyg{outline:none}'
+    +'.note-wysiwyg h1{font-size:23px;font-weight:600;margin:14px 0 7px;color:'+headColor+'}'
+    +'.note-wysiwyg h2{font-size:19px;font-weight:600;margin:12px 0 5px;color:'+headColor+'}'
+    +'.note-wysiwyg ul{padding-left:22px;margin:4px 0}'
+    +'.note-wysiwyg li{padding:2px 0;line-height:1.6}'
+    +'.note-wysiwyg .note-check-row{display:flex;align-items:baseline;gap:6px;padding:3px 0}'
+    +'.note-wysiwyg .note-check-box{cursor:pointer;font-size:16px;color:var(--muted);-webkit-user-select:none;user-select:none;line-height:1}';
+
+  return (
+    <div style={{flex:1,overflow:'hidden',display:'flex',flexDirection:'column'}}>
+      <style>{styleStr}</style>
+      <div
+        ref={editorRef}
+        className="note-wysiwyg"
+        contentEditable={true}
+        suppressContentEditableWarning={true}
+        onInput={handleInput}
+        onClick={handleClick}
+        style={{
+          flex:1,overflowY:'auto',padding:'16px 20px',
+          fontFamily:"'Jost',sans-serif",fontSize:15,
+          lineHeight:1.65,color:textColor,
+          outline:'none',boxSizing:'border-box',
+        }}
+      />
+    </div>
+  );
+}
+
+/* ── HTML export helpers ── */
+function htmlToPlain(html){
+  var tmp=document.createElement('div');
+  tmp.innerHTML=html;
+  return tmp.innerText||tmp.textContent||'';
+}
+function htmlToMarkdown(html){
+  return html
+    .replace(/<h1[^>]*>(.*?)<\/h1>/gi,'# $1\n')
+    .replace(/<h2[^>]*>(.*?)<\/h2>/gi,'## $1\n')
+    .replace(/<strong[^>]*>(.*?)<\/strong>/gi,'**$1**')
+    .replace(/<b[^>]*>(.*?)<\/b>/gi,'**$1**')
+    .replace(/<em[^>]*>(.*?)<\/em>/gi,'*$1*')
+    .replace(/<i[^>]*>(.*?)<\/i>/gi,'*$1*')
+    .replace(/<li[^>]*>(.*?)<\/li>/gi,'- $1\n')
+    .replace(/<br\s*\/?>/gi,'\n')
+    .replace(/<[^>]+>/g,'')
+    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ')
+    .trim();
 }
 
 /* ── Note Preview renderer ── */
@@ -178,20 +256,15 @@ function NotesModule({meta}){
   }
   function exportNote(fmt){
     if(!editingNote) return;
-    const title=editingNote.title||'nota';
-    const body=editingNote.content||'';
-    let text,filename,mime;
+    var title=editingNote.title||'nota';
+    var html=editingNote.content||'';
+    var text,filename,mime;
     if(fmt==='md'){
-      text=(editingNote.title?'# '+editingNote.title+'\n\n':'')+body;
+      text=(editingNote.title?'# '+editingNote.title+'\n\n':'')+htmlToMarkdown(html);
       filename=title.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.md';
       mime='text/markdown';
     } else {
-      const plain=body
-        .replace(/\*\*(.*?)\*\*/g,'$1').replace(/\*(.*?)\*/g,'$1')
-        .replace(/^## /gm,'').replace(/^# /gm,'')
-        .replace(/^- \[x\] /gm,'[✓] ').replace(/^- \[ \] /gm,'[ ] ')
-        .replace(/^- /gm,'• ');
-      text=(editingNote.title?editingNote.title+'\n\n':'')+plain;
+      text=(editingNote.title?editingNote.title+'\n\n':'')+htmlToPlain(html);
       filename=title.replace(/[^a-z0-9]/gi,'_').toLowerCase()+'.txt';
       mime='text/plain';
     }
@@ -541,20 +614,18 @@ function NotesModule({meta}){
             </div>
           </div>
           <NoteToolbar
-            taRef={taRef}
-            content={editingNote.content||''}
-            onChange={function(v){setEditingNote(function(n){return{...n,content:v};});}}
+            editorRef={taRef}
             color={meta.color}
-            mode={noteEditorMode}
-            onToggleMode={function(){setNoteEditorMode(function(m){return m==='edit'?'preview':'edit';});}}
           />
           <input className="note-title-inp" placeholder="TITOLO..." style={{color:noteEditorDark?'#e8e6df':'#2e1f0a'}} value={editingNote.title}
             onChange={e=>setEditingNote(n=>({...n,title:e.target.value}))}/>
-          {noteEditorMode==='edit'
-            ?<textarea ref={taRef} className="note-body-inp" placeholder="Scrivi qualcosa... (usa B I H • ☑ sopra per formattare)" style={{color:noteEditorDark?'#c8c5bd':'#3a2810'}} value={editingNote.content}
-                onChange={e=>setEditingNote(n=>({...n,content:e.target.value}))}/>
-            :<NotePreview content={editingNote.content||''} onToggleCheck={toggleCheckLine} dark={noteEditorDark} color={meta.color}/>
-          }
+          <NoteWysiwygEditor
+            editorRef={taRef}
+            initialContent={editingNote.content||''}
+            onInput={function(html){setEditingNote(function(n){return{...n,content:html};});}}
+            dark={noteEditorDark}
+            color={meta.color}
+          />
           <div className="note-bottom-bar" style={{background:noteEditorDark?'#161614':'var(--surface)',borderTop:noteEditorDark?'1px solid #252521':'1px solid var(--border)'}}>
             {noteGroups.length>0&&(
               <div className="note-group-sel">

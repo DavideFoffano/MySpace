@@ -190,8 +190,8 @@ function TrainingHeatmap({history,color}){
       <div className="chart-wrap">
         <div className="chart-title">Frequenza allenamenti</div>
         <div className="chart-sub">Ultime 52 settimane</div>
-        <div className="heatmap-wrap">
-          <div style={{display:'flex'}}>
+        <div className="heatmap-wrap" style={{overflowX:'auto',WebkitOverflowScrolling:'touch'}}>
+          <div style={{display:'flex',minWidth:'min-content'}}>
             {/* Day labels */}
             <div className="heatmap-day-labels">
               {['L','M','M','G','V','S','D'].map((l,i)=>(
@@ -1005,7 +1005,7 @@ function WorkoutModule({meta}){
                   <div className="we-hdr" style={{flex:1}}>
                     <div className="we-color-bar" style={{background:w.color}}/>
                     <div style={{flex:1}}>
-                      <div className="we-name" style={{color:w.color}}>{w.name}</div>
+                      <div className="we-name" style={{color:w.color,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.name}</div>
                       <div className="we-sub">{w.subtitle} · {w.exercises.length} esercizi</div>
                     </div>
                     <div className="we-actions">
@@ -1054,9 +1054,9 @@ function WorkoutModule({meta}){
             {gymView==='charts'&&<div className="pad anim">
               <div className="greeting">I tuoi<br/><span>progressi</span></div>
               <div className="subhead" style={{marginBottom:20}}>Evoluzione dei tuoi pesi</div>
-              <div className="tabs">
+              <div className="tabs" style={{overflowX:'auto',WebkitOverflowScrolling:'touch',flexWrap:'nowrap',display:'flex'}}>
                 {[['grafici','Grafici'],['volume','Volume'],['record','Record'],['confronto','Confronto'],['storico','Pesi'],['corpo','Corpo']].map(([v,l])=>(
-                  <div key={v} className={`tab${histTab===v?' sel':''}`} onClick={()=>setHistTab(v)}>{l}</div>
+                  <div key={v} className={`tab${histTab===v?' sel':''}`} onClick={()=>setHistTab(v)} style={{flexShrink:0}}>{l}</div>
                 ))}
               </div>
 
