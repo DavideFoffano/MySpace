@@ -2,43 +2,169 @@
    MODULE: NOTES
 ═══════════════════════════════════════════ */
 
-/* ── Note Toolbar (WYSIWYG) ── */
-function NoteToolbar({editorRef,color}){
-  function cmd(command){
+/* ── Note Toolbar ── */
+/* ── WYSIWYG Toolbar ── */
+function NoteToolbar({editorRef, color}){
+  var [fmt, setFmt] = useState({bold:false,italic:false,underline:false,strikeThrough:false,
+    insertUnorderedList:false,insertOrderedList:false,block:'',justify:'left'});
+  var [showColorPicker, setShowColorPicker] = useState(false);
+  var [showSizePicker, setShowSizePicker] = useState(false);
+
+  var TEXT_COLORS = ['#e07070','#d4943a','#d4c96a','#7aba7a','#6aadcf','#9b8fc2','#6b6a5e','#e8e6df'];
+  var COLOR_NAMES = ['Rosso','Arancio','Giallo','Verde','Azzurro','Viola','Grigio','Bianco'];
+  var SIZES = [{label:'S',val:'2'},{label:'M',val:'3'},{label:'L',val:'5'},{label:'XL',val:'7'}];
+
+  useEffect(function(){
+    function onSel(){
+      try {
+        setFmt({
+          bold: document.queryCommandState('bold'),
+          italic: document.queryCommandState('italic'),
+          underline: document.queryCommandState('underline'),
+          strikeThrough: document.queryCommandState('strikeThrough'),
+          insertUnorderedList: document.queryCommandState('insertUnorderedList'),
+          insertOrderedList: document.queryCommandState('insertOrderedList'),
+          block: document.queryCommandValue('formatBlock').toLowerCase(),
+          justify: document.queryCommandState('justifyCenter')?'center'
+            :document.queryCommandState('justifyRight')?'right':'left',
+        });
+      } catch(e){}
+    }
+    document.addEventListener('selectionchange', onSel);
+    return function(){ document.removeEventListener('selectionchange', onSel); };
+  }, []);
+
+  function cmd(command, val){
     if(!editorRef.current) return;
     editorRef.current.focus();
-    document.execCommand(command,false,null);
+    document.execCommand(command, false, val||null);
   }
-  function insertHeading(){
+  function setBlock(tag){
     if(!editorRef.current) return;
     editorRef.current.focus();
-    document.execCommand('formatBlock',false,'h2');
+    var cur = document.queryCommandValue('formatBlock').toLowerCase();
+    document.execCommand('formatBlock', false, (cur===tag)?'p':tag);
   }
-  function insertBullet(){
+  function insertHR(){
     if(!editorRef.current) return;
     editorRef.current.focus();
-    document.execCommand('insertUnorderedList');
+    document.execCommand('insertHTML', false, '<hr style="border:none;border-top:1px solid var(--border2);margin:12px 0"/>');
+  }
+  function insertLink(){
+    if(!editorRef.current) return;
+    var url = window.prompt('URL del link:','https://');
+    if(!url) return;
+    editorRef.current.focus();
+    document.execCommand('createLink', false, url);
   }
   function insertChecklist(){
     if(!editorRef.current) return;
     editorRef.current.focus();
-    document.execCommand('insertHTML',false,
-      '<div class="note-check-row"><span class="note-check-box" contenteditable="false" data-checked="false">\u2610</span><span>\u00a0Attivit\u00e0</span></div><div><br/></div>');
+    document.execCommand('insertHTML', false,
+      '<div class="note-check-row"><span class="note-check-box" contenteditable="false" data-checked="false">\u2610</span><span>&nbsp;Elemento</span></div><div><br/></div>');
   }
-  var tb={fontFamily:"'Jost',sans-serif",fontSize:13,fontWeight:600,padding:'5px 10px',borderRadius:6,border:'none',cursor:'pointer',background:'transparent',color:'var(--muted)',lineHeight:1};
+
+  var tb = {fontFamily:"'Jost',sans-serif",fontSize:13,fontWeight:600,padding:'5px 8px',borderRadius:6,
+    border:'none',cursor:'pointer',background:'transparent',color:'var(--muted)',lineHeight:1,flexShrink:0,whiteSpace:'nowrap'};
+  function act(active){ return Object.assign({},tb,active?{color:color,background:color+'2a'}:{}); }
+  var sep = {width:1,height:18,background:'var(--border2)',flexShrink:0,alignSelf:'center',margin:'0 2px'};
+
   return(
-    <div style={{display:'flex',alignItems:'center',gap:2,padding:'5px 10px',borderBottom:'1px solid rgba(120,100,60,0.2)'}}>
-      <button style={tb} title="Grassetto" onMouseDown={function(e){e.preventDefault();cmd('bold');}}><b>B</b></button>
-      <button style={Object.assign({},tb,{fontStyle:'italic'})} title="Corsivo" onMouseDown={function(e){e.preventDefault();cmd('italic');}}>I</button>
-      <button style={tb} title="Intestazione" onMouseDown={function(e){e.preventDefault();insertHeading();}}>H</button>
-      <button style={tb} title="Lista puntata" onMouseDown={function(e){e.preventDefault();insertBullet();}}>\u2022—</button>
-      <button style={tb} title="Checklist" onMouseDown={function(e){e.preventDefault();insertChecklist();}}>\u2611</button>
+    <div style={{display:'flex',alignItems:'center',gap:0,padding:'4px 8px',
+      borderBottom:'1px solid rgba(120,100,60,0.2)',overflowX:'auto',WebkitOverflowScrolling:'touch',
+      scrollbarWidth:'none',position:'relative'}}>
+
+      {/* Inline */}
+      <button style={act(fmt.bold)} title="Grassetto" onMouseDown={function(e){e.preventDefault();cmd('bold');}}><b>B</b></button>
+      <button style={act(fmt.italic)} title="Corsivo" onMouseDown={function(e){e.preventDefault();cmd('italic');}}><i>I</i></button>
+      <button style={act(fmt.underline)} title="Sottolineato" onMouseDown={function(e){e.preventDefault();cmd('underline');}}><u>U</u></button>
+      <button style={act(fmt.strikeThrough)} title="Barrato" onMouseDown={function(e){e.preventDefault();cmd('strikeThrough');}}><s>S</s></button>
+      <div style={sep}/>
+
+      {/* Highlight + Color */}
+      <button style={act(false)} title="Evidenzia" onMouseDown={function(e){e.preventDefault();cmd('hiliteColor','#d4943a44');}}>
+        <span style={{fontSize:14}}>🖊</span>
+      </button>
+      <div style={{position:'relative',flexShrink:0}}>
+        <button style={act(false)} title="Colore testo"
+          onMouseDown={function(e){e.preventDefault();setShowColorPicker(function(v){return !v;});setShowSizePicker(false);}}>
+          <span style={{fontSize:12}}>A</span><span style={{fontSize:9}}>▾</span>
+        </button>
+        {showColorPicker&&(
+          <div style={{position:'fixed',zIndex:400,background:'var(--surface)',border:'1px solid var(--border2)',
+            borderRadius:10,padding:8,display:'flex',gap:6,flexWrap:'wrap',width:152,boxShadow:'0 4px 20px rgba(0,0,0,.4)'}}
+            onMouseDown={function(e){e.stopPropagation();}}>
+            {TEXT_COLORS.map(function(c,i){
+              return(
+                <div key={c} title={COLOR_NAMES[i]}
+                  onMouseDown={function(e){e.preventDefault();editorRef.current&&editorRef.current.focus();cmd('foreColor',c);setShowColorPicker(false);}}
+                  style={{width:28,height:28,borderRadius:6,background:c,cursor:'pointer',
+                    border:'2px solid rgba(255,255,255,0.1)',flexShrink:0}}/>
+              );
+            })}
+            <div title="Predefinito"
+              onMouseDown={function(e){e.preventDefault();editorRef.current&&editorRef.current.focus();cmd('removeFormat');setShowColorPicker(false);}}
+              style={{width:28,height:28,borderRadius:6,background:'transparent',cursor:'pointer',
+                border:'1px dashed var(--border2)',display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:10,color:'var(--muted)'}}>✕</div>
+          </div>
+        )}
+      </div>
+      <div style={sep}/>
+
+      {/* Font size */}
+      <div style={{position:'relative',flexShrink:0}}>
+        <button style={act(false)} title="Dimensione"
+          onMouseDown={function(e){e.preventDefault();setShowSizePicker(function(v){return !v;});setShowColorPicker(false);}}>
+          <span style={{fontSize:12}}>Aa</span><span style={{fontSize:9}}>▾</span>
+        </button>
+        {showSizePicker&&(
+          <div style={{position:'fixed',zIndex:400,background:'var(--surface)',border:'1px solid var(--border2)',
+            borderRadius:10,padding:6,display:'flex',flexDirection:'column',gap:2,boxShadow:'0 4px 20px rgba(0,0,0,.4)'}}
+            onMouseDown={function(e){e.stopPropagation();}}>
+            {SIZES.map(function(s){
+              return(
+                <button key={s.val}
+                  onMouseDown={function(e){e.preventDefault();editorRef.current&&editorRef.current.focus();cmd('fontSize',s.val);setShowSizePicker(false);}}
+                  style={{padding:'5px 16px',borderRadius:7,border:'none',cursor:'pointer',
+                    background:'transparent',color:'var(--text)',fontFamily:"'Jost',sans-serif",
+                    textAlign:'left',fontWeight:500,whiteSpace:'nowrap'}}>
+                  {s.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      <div style={sep}/>
+
+      {/* Block */}
+      <button style={act(fmt.block==='p'||fmt.block==='')} title="Paragrafo" onMouseDown={function(e){e.preventDefault();setBlock('p');}}>P</button>
+      <button style={act(fmt.block==='h1')} title="Titolo 1" onMouseDown={function(e){e.preventDefault();setBlock('h1');}}><b>H1</b></button>
+      <button style={act(fmt.block==='h2')} title="Titolo 2" onMouseDown={function(e){e.preventDefault();setBlock('h2');}}><b>H2</b></button>
+      <div style={sep}/>
+
+      {/* Align */}
+      <button style={act(fmt.justify==='left')} title="Sinistra" onMouseDown={function(e){e.preventDefault();cmd('justifyLeft');}}>←</button>
+      <button style={act(fmt.justify==='center')} title="Centro" onMouseDown={function(e){e.preventDefault();cmd('justifyCenter');}}>↔</button>
+      <button style={act(fmt.justify==='right')} title="Destra" onMouseDown={function(e){e.preventDefault();cmd('justifyRight');}}>→</button>
+      <div style={sep}/>
+
+      {/* Lists + checklist */}
+      <button style={act(fmt.insertUnorderedList)} title="Lista puntata" onMouseDown={function(e){e.preventDefault();cmd('insertUnorderedList');}}>•—</button>
+      <button style={act(fmt.insertOrderedList)} title="Lista numerata" onMouseDown={function(e){e.preventDefault();cmd('insertOrderedList');}}>1.</button>
+      <button style={act(false)} title="Checklist" onMouseDown={function(e){e.preventDefault();insertChecklist();}}>☑</button>
+      <div style={sep}/>
+
+      {/* HR + Link */}
+      <button style={act(false)} title="Separatore" onMouseDown={function(e){e.preventDefault();insertHR();}}>—</button>
+      <button style={act(false)} title="Link" onMouseDown={function(e){e.preventDefault();insertLink();}}>🔗</button>
     </div>
   );
 }
 
 /* ── WYSIWYG editor ── */
-function NoteWysiwygEditor({editorRef,initialContent,onInput,dark,color}){
+function NoteWysiwygEditor({editorRef, initialContent, onInput, dark, color}){
   useEffect(function(){
     if(editorRef.current){
       editorRef.current.innerHTML = initialContent||'';
@@ -66,12 +192,15 @@ function NoteWysiwygEditor({editorRef,initialContent,onInput,dark,color}){
     }
   }
 
-  var styleStr=
+  var styleStr =
     '.note-wysiwyg{outline:none}'
     +'.note-wysiwyg h1{font-size:23px;font-weight:600;margin:14px 0 7px;color:'+headColor+'}'
     +'.note-wysiwyg h2{font-size:19px;font-weight:600;margin:12px 0 5px;color:'+headColor+'}'
     +'.note-wysiwyg ul{padding-left:22px;margin:4px 0}'
+    +'.note-wysiwyg ol{padding-left:22px;margin:4px 0}'
     +'.note-wysiwyg li{padding:2px 0;line-height:1.6}'
+    +'.note-wysiwyg a{color:'+color+';text-decoration:underline}'
+    +'.note-wysiwyg hr{border:none;border-top:1px solid var(--border2);margin:12px 0}'
     +'.note-wysiwyg .note-check-row{display:flex;align-items:baseline;gap:6px;padding:3px 0}'
     +'.note-wysiwyg .note-check-box{cursor:pointer;font-size:16px;color:var(--muted);-webkit-user-select:none;user-select:none;line-height:1}';
 
@@ -110,60 +239,12 @@ function htmlToMarkdown(html){
     .replace(/<b[^>]*>(.*?)<\/b>/gi,'**$1**')
     .replace(/<em[^>]*>(.*?)<\/em>/gi,'*$1*')
     .replace(/<i[^>]*>(.*?)<\/i>/gi,'*$1*')
+    .replace(/<u[^>]*>(.*?)<\/u>/gi,'__$1__')
     .replace(/<li[^>]*>(.*?)<\/li>/gi,'- $1\n')
     .replace(/<br\s*\/?>/gi,'\n')
     .replace(/<[^>]+>/g,'')
     .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&nbsp;/g,' ')
     .trim();
-}
-
-/* ── Note Preview renderer ── */
-function NotePreview({content,onToggleCheck,dark,color}){
-  function mdInline(text){
-    return text
-      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-      .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-      .replace(/\*(.*?)\*/g,'<em>$1</em>');
-  }
-  const lines=(content||'').split('\n');
-  const tc=dark?'#c8c5bd':'#3a2810';
-  return(
-    <div style={{flex:1,overflowY:'auto',padding:'16px 20px',fontFamily:"'Jost',sans-serif",color:tc}}>
-      {lines.map(function(line,i){
-        if(/^## /.test(line)) return(
-          <div key={i} style={{fontSize:19,fontWeight:600,margin:'12px 0 5px',color:dark?'#e8e6df':'#1a1000'}}
-            dangerouslySetInnerHTML={{__html:mdInline(line.slice(3))}}/>
-        );
-        if(/^# /.test(line)) return(
-          <div key={i} style={{fontSize:23,fontWeight:600,margin:'14px 0 7px',color:dark?'#e8e6df':'#1a1000'}}
-            dangerouslySetInnerHTML={{__html:mdInline(line.slice(2))}}/>
-        );
-        if(/^- \[[ x]\] /.test(line)){
-          const checked=line[3]==='x';
-          const text=line.slice(6);
-          return(
-            <div key={i} style={{display:'flex',alignItems:'center',gap:8,padding:'4px 0',cursor:'pointer'}} onClick={function(){onToggleCheck(i);}}>
-              <div style={{width:17,height:17,borderRadius:4,border:'2px solid '+(checked?color:'#888'),background:checked?color:'transparent',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,transition:'all .15s'}}>
-                {checked&&<span style={{color:'#000',fontSize:10,fontWeight:700,lineHeight:1}}>✓</span>}
-              </div>
-              <span style={{textDecoration:checked?'line-through':'none',color:checked?'#888':tc,fontSize:15,lineHeight:1.5}}>{text}</span>
-            </div>
-          );
-        }
-        if(/^- /.test(line)) return(
-          <div key={i} style={{display:'flex',gap:8,padding:'2px 0',fontSize:15,lineHeight:1.6}}>
-            <span style={{color:color,flexShrink:0}}>•</span>
-            <span dangerouslySetInnerHTML={{__html:mdInline(line.slice(2))}}/>
-          </div>
-        );
-        if(line==='') return <div key={i} style={{height:8}}/>;
-        return(
-          <div key={i} style={{fontSize:15,lineHeight:1.65,padding:'1px 0'}}
-            dangerouslySetInnerHTML={{__html:mdInline(line)}}/>
-        );
-      })}
-    </div>
-  );
 }
 
 function NotesModule({meta}){
@@ -236,16 +317,22 @@ function NotesModule({meta}){
   const NOTE_COLORS=['#6dbb8a','#a8c26b','#c97a4a','#9b8fc2','#d4a84b','#7ab8b0'];
   function newNote(){setNoteEditorMode('edit');setEditingNote({id:null,title:'',content:'',color:'#a8c26b',pinned:false,group:noteGroupFilter!=='all'?noteGroupFilter:null});}
   function openNote(n){setNoteEditorMode('edit');setEditingNote({...n});}
-  function saveNote(){
-    if(!editingNote.title.trim()&&!editingNote.content.trim()){setEditingNote(null);return;}
-    let next;
-    if(editingNote.id){
-      next=notes.map(n=>n.id===editingNote.id?{...editingNote}:n);
+  function saveNote(noteOverride){
+    var note = noteOverride||editingNote;
+    if(!note) return;
+    var plainText = htmlToPlain(note.content||'');
+    if(!note.title.trim()&&!plainText.trim()){setEditingNote(null);return;}
+    var next;
+    if(note.id){
+      next=notes.map(function(n){return n.id===note.id?note:n;});
     }else{
-      next=[{...editingNote,id:uuid(),date:new Date().toISOString()},...notes];
+      next=[Object.assign({},note,{id:uuid(),date:new Date().toISOString()}),...notes];
     }
-    next=next.sort((a,b)=>(b.pinned?1:0)-(a.pinned?1:0));
+    next=next.sort(function(a,b){return (b.pinned?1:0)-(a.pinned?1:0);});
     setNotes(next);LS.set('ms_notes',next);setEditingNote(null);
+  }
+  function saveNoteAndClose(){
+    saveNote(editingNote);
   }
   function deleteNote(id){
     const next=notes.filter(n=>n.id!==id);setNotes(next);LS.set('ms_notes',next);setEditingNote(null);
@@ -600,7 +687,7 @@ function NotesModule({meta}){
       <div className="app">
         <div className="note-editor" style={{background:noteEditorDark?'#111110':'#e8dfc8',backgroundImage:bgImg}}>
           <div className="note-editor-hdr" style={{background:noteEditorDark?'rgba(17,17,16,0.9)':'rgba(220,200,160,0.25)',borderBottom:noteEditorDark?'1px solid #252521':'1px solid rgba(160,130,90,0.3)'}}>
-            <button className="back" onClick={()=>setEditingNote(null)}><Icon name="back_arr" size={16}/></button>
+            <button className="back" onClick={saveNoteAndClose}><Icon name="back_arr" size={16}/></button>
             <div style={{flex:1,fontFamily:"'Jost',sans-serif",fontSize:14,fontWeight:400,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--muted)'}}>
               {editingNote.id?'Modifica nota':'Nuova nota'}
             </div>
@@ -610,7 +697,7 @@ function NotesModule({meta}){
                 {editingNote.pinned?'📌':'📍'}
               </button>}
               <button className="note-editor-btn" onClick={toggleEditorTheme} title="Cambia tema" style={{fontSize:'16px',padding:'4px 10px'}}>{noteEditorDark?'☀':'🌙'}</button>
-              <button className="note-editor-btn note-save-btn" style={{background:meta.color}} onClick={saveNote}>Salva</button>
+
             </div>
           </div>
           <NoteToolbar
