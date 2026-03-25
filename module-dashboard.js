@@ -2,11 +2,12 @@
    DASHBOARD MODULE — sync + hub
 ═══════════════════════════════════════════ */
 
+/* ── Card: ID dispositivo ── */
 function DashUserIdCard(){
-  const [uid,setUid]=useState(getUserId());
-  const [editing,setEditing]=useState(false);
-  const [val,setVal]=useState(uid);
-  const [copied,setCopied]=useState(false);
+  var [uid,setUid]=useState(getUserId());
+  var [editing,setEditing]=useState(false);
+  var [val,setVal]=useState(uid);
+  var [copied,setCopied]=useState(false);
 
   function handleCopy(){
     navigator.clipboard.writeText(uid).then(function(){
@@ -76,17 +77,18 @@ function DashUserIdCard(){
   );
 }
 
+/* ── Card: Sincronizzazione ── */
+function DashSyncCard(){
+  var cfg=LS.get('ms_supa');
+  var isConfigured=!!(cfg&&cfg.url&&cfg.key);
 
-  const cfg=LS.get('ms_supa');
-  const isConfigured=!!(cfg&&cfg.url&&cfg.key);
-
-  const [syncStatus,setSyncStatus]=useState(null); // null | 'syncing' | 'ok' | 'error'
-  const [lastSync,setLastSync]=useState(LS.get('ms_last_sync'));
-  const [showConfig,setShowConfig]=useState(!isConfigured);
-  const [supaUrl,setSupaUrl]=useState(cfg&&cfg.url?cfg.url:'');
-  const [supaKey,setSupaKey]=useState(cfg&&cfg.key?cfg.key:'');
-  const [configured,setConfigured]=useState(isConfigured);
-  const [statusMsg,setStatusMsg]=useState('');
+  var [syncStatus,setSyncStatus]=useState(null);
+  var [lastSync,setLastSync]=useState(LS.get('ms_last_sync'));
+  var [showConfig,setShowConfig]=useState(!isConfigured);
+  var [supaUrl,setSupaUrl]=useState(cfg&&cfg.url?cfg.url:'');
+  var [supaKey,setSupaKey]=useState(cfg&&cfg.key?cfg.key:'');
+  var [configured,setConfigured]=useState(isConfigured);
+  var [statusMsg,setStatusMsg]=useState('');
 
   function saveConfig(){
     if(!supaUrl.trim()||!supaKey.trim()) return;
@@ -143,8 +145,6 @@ function DashUserIdCard(){
 
   return (
     <div className="card" style={{padding:'20px',marginBottom:'16px'}}>
-
-      {/* Header card */}
       <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'16px'}}>
         <span style={{fontWeight:500,fontSize:'15px',letterSpacing:'0.04em'}}>Sincronizzazione</span>
         <span style={{
@@ -157,42 +157,33 @@ function DashUserIdCard(){
         </span>
       </div>
 
-      {/* Ultimo sync */}
       {lastSync&&(
         <p style={{fontSize:'12px',color:'var(--muted)',marginBottom:'16px'}}>
           Ultimo sync: <span style={{color:'var(--text)'}}>{fmtSync(lastSync)}</span>
         </p>
       )}
 
-      {/* Bottoni sync */}
       {configured&&(
         <div style={{display:'flex',gap:'10px',marginBottom:'12px'}}>
-          <button
-            onClick={handleUp}
-            disabled={syncing}
-            style={{
-              flex:1,padding:'11px 0',borderRadius:'10px',border:'none',cursor:syncing?'default':'pointer',
-              background:'linear-gradient(145deg,var(--acc),color-mix(in srgb,var(--acc) 70%,#000))',
-              color:'#0b0c09',fontWeight:600,fontSize:'13px',letterSpacing:'0.08em',
-              opacity:syncing?0.6:1
-            }}>
-            {syncing?'..':'☁ Carica'}
+          <button onClick={handleUp} disabled={syncing} style={{
+            flex:1,padding:'11px 0',borderRadius:'10px',border:'none',cursor:syncing?'default':'pointer',
+            background:'linear-gradient(145deg,var(--acc),color-mix(in srgb,var(--acc) 70%,#000))',
+            color:'#0b0c09',fontWeight:600,fontSize:'13px',letterSpacing:'0.08em',
+            opacity:syncing?0.6:1
+          }}>
+            {syncing?'...':'☁ Carica'}
           </button>
-          <button
-            onClick={handleDown}
-            disabled={syncing}
-            style={{
-              flex:1,padding:'11px 0',borderRadius:'10px',cursor:syncing?'default':'pointer',
-              background:'var(--surface2)',color:'var(--text)',
-              border:'1px solid var(--border2)',fontWeight:500,fontSize:'13px',letterSpacing:'0.06em',
-              opacity:syncing?0.6:1
-            }}>
-            {syncing?'..':'↓ Scarica'}
+          <button onClick={handleDown} disabled={syncing} style={{
+            flex:1,padding:'11px 0',borderRadius:'10px',cursor:syncing?'default':'pointer',
+            background:'var(--surface2)',color:'var(--text)',
+            border:'1px solid var(--border2)',fontWeight:500,fontSize:'13px',letterSpacing:'0.06em',
+            opacity:syncing?0.6:1
+          }}>
+            {syncing?'...':'↓ Scarica'}
           </button>
         </div>
       )}
 
-      {/* Status message */}
       {statusMsg&&(
         <p style={{
           fontSize:'12px',textAlign:'center',marginBottom:'8px',
@@ -202,23 +193,17 @@ function DashUserIdCard(){
         </p>
       )}
 
-      {/* Toggle config */}
-      <button
-        onClick={function(){setShowConfig(!showConfig);}}
-        style={{
-          background:'none',border:'none',color:'var(--muted)',
-          fontSize:'12px',padding:'6px 0 0',cursor:'pointer',display:'block',letterSpacing:'0.04em'
-        }}>
+      <button onClick={function(){setShowConfig(!showConfig);}} style={{
+        background:'none',border:'none',color:'var(--muted)',
+        fontSize:'12px',padding:'6px 0 0',cursor:'pointer',display:'block',letterSpacing:'0.04em'
+      }}>
         {showConfig?'▲ Chiudi':'⚙ Configura Supabase'}
       </button>
 
-      {/* Config form */}
       {showConfig&&(
         <div style={{marginTop:'14px',display:'flex',flexDirection:'column',gap:'8px'}}>
           <p style={{fontSize:'11px',color:'var(--muted)',lineHeight:'1.5',marginBottom:'4px'}}>
             Inserisci le credenziali dal tuo progetto Supabase (Impostazioni → API).
-            Crea la tabella <code style={{color:'var(--acc)',fontSize:'11px'}}>ms_sync_data</code> con colonne{' '}
-            <code style={{fontSize:'11px'}}>user_id text PK, data jsonb, updated_at timestamptz</code>.
           </p>
           <input
             className="m-inp"
@@ -235,13 +220,11 @@ function DashUserIdCard(){
             type="password"
             style={{fontSize:'13px'}}
           />
-          <button
-            onClick={saveConfig}
-            style={{
-              padding:'11px',borderRadius:'10px',border:'none',cursor:'pointer',
-              background:'linear-gradient(145deg,var(--acc),color-mix(in srgb,var(--acc) 70%,#000))',
-              color:'#0b0c09',fontWeight:600,fontSize:'13px',letterSpacing:'0.08em'
-            }}>
+          <button onClick={saveConfig} style={{
+            padding:'11px',borderRadius:'10px',border:'none',cursor:'pointer',
+            background:'linear-gradient(145deg,var(--acc),color-mix(in srgb,var(--acc) 70%,#000))',
+            color:'#0b0c09',fontWeight:600,fontSize:'13px',letterSpacing:'0.08em'
+          }}>
             Salva configurazione
           </button>
         </div>
@@ -250,19 +233,17 @@ function DashUserIdCard(){
   );
 }
 
-/* ── Info card: istruzioni SQL ── */
+/* ── Card: SQL setup ── */
 function DashSqlCard(){
-  const [open,setOpen]=useState(false);
-  const sql=`create table ms_sync_data (\n  user_id text primary key,\n  data jsonb,\n  updated_at timestamptz default now()\n);`;
+  var [open,setOpen]=useState(false);
+  var sql="create table ms_sync_data (\n  user_id text primary key,\n  data jsonb,\n  updated_at timestamptz default now()\n);\n\nalter table ms_sync_data disable row level security;";
   return (
     <div className="card" style={{padding:'20px',marginBottom:'16px'}}>
-      <button
-        onClick={function(){setOpen(!open);}}
-        style={{
-          background:'none',border:'none',color:'var(--muted)',
-          fontSize:'13px',cursor:'pointer',display:'flex',alignItems:'center',gap:'8px',
-          width:'100%',textAlign:'left',padding:0
-        }}>
+      <button onClick={function(){setOpen(!open);}} style={{
+        background:'none',border:'none',color:'var(--muted)',
+        fontSize:'13px',cursor:'pointer',display:'flex',alignItems:'center',gap:'8px',
+        width:'100%',textAlign:'left',padding:0
+      }}>
         <Icon name="nav_sett" size={14} color="var(--muted)"/>
         <span>Setup tabella Supabase</span>
         <span style={{marginLeft:'auto'}}>{open?'▲':'▼'}</span>
