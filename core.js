@@ -4,14 +4,16 @@ const {useState,useEffect,useRef,useCallback,useMemo} = React;
    MODULE COLORS
 ═══════════════════════════════════════════ */
 const MODULE_META = {
-  todo:     { label:'To-Do',   icon:'todo',     color:'#6aadcf', bg:'#161614', border:'#252521', surface:'#111110' },
-  gym:      { label:'Workout', icon:'gym',      color:'#d4943a', bg:'#1a1208', border:'#2e1e08', surface:'#120d05' },
-  expenses: { label:'Spese',   icon:'expenses', color:'#7aba7a', bg:'#161614', border:'#252521', surface:'#111110' },
-  notes:    { label:'Note',    icon:'notes',    color:'#d4c9a8', bg:'#1a1810', border:'#2e2c1e', surface:'#120f08' },
+  dashboard:{ label:'Home',    icon:'nav_dash',  color:'#9aafc2', bg:'#161614', border:'#252521', surface:'#111110' },
+  todo:     { label:'To-Do',   icon:'todo',      color:'#6aadcf', bg:'#161614', border:'#252521', surface:'#111110' },
+  gym:      { label:'Workout', icon:'gym',       color:'#d4943a', bg:'#1a1208', border:'#2e1e08', surface:'#120d05' },
+  expenses: { label:'Spese',   icon:'expenses',  color:'#7aba7a', bg:'#161614', border:'#252521', surface:'#111110' },
+  notes:    { label:'Note',    icon:'notes',     color:'#d4c9a8', bg:'#1a1810', border:'#2e2c1e', surface:'#120f08' },
 };
 
 // Per-module CSS variable overrides — subtle tint of each accent on bg/surface/border
 const MODULE_THEME = {
+  dashboard:{ '--bg':'#111110', '--surface':'#161614', '--surface2':'#1e1e1b', '--border':'#252521', '--border2':'#2e2e2a' },
   todo:     { '--bg':'#111110', '--surface':'#161614', '--surface2':'#1e1e1b', '--border':'#252521', '--border2':'#2e2e2a' },
   gym:      { '--bg':'#161614', '--surface':'#1e1e1b', '--surface2':'#252521', '--border':'#35342f', '--border2':'#3f3e38' },
   expenses: { '--bg':'#111110', '--surface':'#161614', '--surface2':'#1e1e1b', '--border':'#252521', '--border2':'#2e2e2a' },
@@ -24,6 +26,7 @@ const MODULE_THEME = {
 ═══════════════════════════════════════════ */
 const PATHS = {
   // ── Module nav ──
+  nav_dash:  "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z",
   todo:      "M9 11l3 3 5-6M5 3h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2z",
   gym:       "M3 9h4v6H3zM17 9h4v6h-4zM7 12h10M7 10v4M17 10v4",
   expenses:  "M21 6H3a1 1 0 00-1 1v10a1 1 0 001 1h18a1 1 0 001-1V7a1 1 0 00-1-1zM2 11h20M17 15a2 2 0 100-4h-3v4h3z",
@@ -368,10 +371,12 @@ function getUserId(){
 let supaClient=null;
 function getSupabase(){
   const cfg=LS.get('ms_supa');
-  if(!cfg?.url||!cfg?.key) return null;
+  if(!cfg||!cfg.url||!cfg.key) return null;
   if(!supaClient) supaClient=supabase.createClient(cfg.url,cfg.key);
   return supaClient;
 }
+function resetSupaClient(){ supaClient=null; }
+
 async function syncUp(state){
   const sb=getSupabase();if(!sb)return;
   try{await sb.from('ironlog_data').upsert({user_id:getUserId(),data:state,updated_at:new Date().toISOString()},{onConflict:'user_id'});}
@@ -379,8 +384,54 @@ async function syncUp(state){
 }
 async function syncDown(){
   const sb=getSupabase();if(!sb)return null;
-  try{const{data}=await sb.from('ironlog_data').select('data').eq('user_id',getUserId()).single();return data?.data||null;}
-  catch(e){return null;}
+  try{
+    const res=await sb.from('ironlog_data').select('data').eq('user_id',getUserId()).single();
+    return res.data&&res.data.data?res.data.data:null;
+  }catch(e){return null;}
+}
+
+/* Chiavi escluse dalla sync globale (device-specific / OAuth token) */
+var SYNC_EXCLUDE_KEYS=['ms_uid','ms_supa','ms_spotify_token','ms_gcal_token','ms_gcal_verifier'];
+
+async function syncAllUp(){
+  var sb=getSupabase();
+  if(!sb) return {ok:false,err:'not_configured'};
+  var data={};
+  var legacyKeys=['workouts','history','weightLog','settings'];
+  for(var i=0;i<localStorage.length;i++){
+    var k=localStorage.key(i);
+    if(!k) continue;
+    if(SYNC_EXCLUDE_KEYS.indexOf(k)>=0) continue;
+    if(k.startsWith('ms_')||legacyKeys.indexOf(k)>=0){
+      try{ data[k]=JSON.parse(localStorage.getItem(k)); }catch(e){ data[k]=localStorage.getItem(k); }
+    }
+  }
+  try{
+    await sb.from('ms_sync_data').upsert({user_id:getUserId(),data:data,updated_at:new Date().toISOString()},{onConflict:'user_id'});
+    var now=new Date().toISOString();
+    LS.set('ms_last_sync',now);
+    return {ok:true,at:now};
+  }catch(e){ return {ok:false,err:e.message}; }
+}
+
+async function syncAllDown(){
+  var sb=getSupabase();
+  if(!sb) return {ok:false,err:'not_configured'};
+  try{
+    var res=await sb.from('ms_sync_data').select('data,updated_at').eq('user_id',getUserId()).single();
+    if(res.error||!res.data) return {ok:false,err:'no_data'};
+    var remoteAt=res.data.updated_at;
+    var lastDown=LS.get('ms_last_sync_down');
+    if(lastDown&&lastDown>=remoteAt) return {ok:true,fresh:false};
+    var remote=res.data.data||{};
+    Object.keys(remote).forEach(function(k){
+      if(SYNC_EXCLUDE_KEYS.indexOf(k)>=0) return;
+      LS.set(k,remote[k]);
+    });
+    LS.set('ms_last_sync_down',remoteAt);
+    LS.set('ms_last_sync',new Date().toISOString());
+    return {ok:true,fresh:true,at:remoteAt};
+  }catch(e){ return {ok:false,err:e.message}; }
 }
 
 /* ═══════════════════════════════════════════
