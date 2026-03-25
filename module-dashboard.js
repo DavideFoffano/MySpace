@@ -2,7 +2,81 @@
    DASHBOARD MODULE — sync + hub
 ═══════════════════════════════════════════ */
 
-function DashSyncCard(){
+function DashUserIdCard(){
+  const [uid,setUid]=useState(getUserId());
+  const [editing,setEditing]=useState(false);
+  const [val,setVal]=useState(uid);
+  const [copied,setCopied]=useState(false);
+
+  function handleCopy(){
+    navigator.clipboard.writeText(uid).then(function(){
+      setCopied(true);
+      setTimeout(function(){setCopied(false);},1800);
+    });
+  }
+
+  function handleSave(){
+    var v=val.trim();
+    if(!v) return;
+    LS.set('ms_uid',v);
+    setUid(v);
+    setEditing(false);
+  }
+
+  return (
+    <div className="card" style={{padding:'20px',marginBottom:'16px'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+        <span style={{fontWeight:500,fontSize:'15px',letterSpacing:'0.04em'}}>ID Dispositivo</span>
+        <span style={{fontSize:'11px',color:'var(--muted)'}}>uguale su tutti i dispositivi</span>
+      </div>
+      {!editing?(
+        <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+          <code style={{
+            flex:1,padding:'10px 12px',borderRadius:'8px',fontSize:'12px',
+            background:'var(--surface2)',border:'1px solid var(--border2)',
+            color:'var(--acc)',letterSpacing:'0.05em',wordBreak:'break-all'
+          }}>{uid}</code>
+          <button onClick={handleCopy} style={{
+            padding:'10px 14px',borderRadius:'8px',border:'1px solid var(--border2)',
+            background:'var(--surface2)',color:'var(--text)',fontSize:'12px',
+            cursor:'pointer',whiteSpace:'nowrap',flexShrink:0
+          }}>{copied?'✓':'Copia'}</button>
+          <button onClick={function(){setVal(uid);setEditing(true);}} style={{
+            padding:'10px 14px',borderRadius:'8px',border:'1px solid var(--border2)',
+            background:'var(--surface2)',color:'var(--muted)',fontSize:'12px',
+            cursor:'pointer',flexShrink:0
+          }}>✏️</button>
+        </div>
+      ):(
+        <div style={{display:'flex',flexDirection:'column',gap:'8px'}}>
+          <input
+            className="m-inp"
+            value={val}
+            onChange={function(e){setVal(e.target.value);}}
+            style={{fontSize:'13px'}}
+          />
+          <div style={{display:'flex',gap:'8px'}}>
+            <button onClick={handleSave} style={{
+              flex:1,padding:'10px',borderRadius:'8px',border:'none',cursor:'pointer',
+              background:'linear-gradient(145deg,var(--acc),color-mix(in srgb,var(--acc) 70%,#000))',
+              color:'#0b0c09',fontWeight:600,fontSize:'13px'
+            }}>Salva</button>
+            <button onClick={function(){setEditing(false);}} style={{
+              flex:1,padding:'10px',borderRadius:'8px',cursor:'pointer',
+              background:'var(--surface2)',color:'var(--muted)',
+              border:'1px solid var(--border2)',fontSize:'13px'
+            }}>Annulla</button>
+          </div>
+        </div>
+      )}
+      <p style={{fontSize:'11px',color:'var(--muted)',marginTop:'10px',lineHeight:'1.5'}}>
+        Per sincronizzare due dispositivi devono avere lo stesso ID. Copia l'ID dal dispositivo principale e incollalo qui.
+      </p>
+    </div>
+  );
+}
+
+
   const cfg=LS.get('ms_supa');
   const isConfigured=!!(cfg&&cfg.url&&cfg.key);
 
@@ -214,6 +288,7 @@ function DashboardModule(){
         <p className="subhead">Sincronizzazione tra dispositivi</p>
       </div>
       <div style={{padding:'0 16px 32px'}}>
+        <DashUserIdCard/>
         <DashSyncCard/>
         <DashSqlCard/>
       </div>
