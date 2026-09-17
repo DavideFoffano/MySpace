@@ -16,30 +16,68 @@ function getRpeLabel(rpe){
 }
 
 function RestTimer({duration,onDone}){
+  const [total,setTotal]=useState(duration);
   const [left,setLeft]=useState(duration);
+  const [editing,setEditing]=useState(false);
+  const [editVal,setEditVal]=useState(String(duration));
   const SIZE=44;
   useEffect(()=>{
     if(left<=0){onDone();return;}
     const id=setTimeout(()=>setLeft(l=>l-1),1000);
     return()=>clearTimeout(id);
   },[left]);
+
+  function adjust(delta){
+    setLeft(l=>{
+      const nl=Math.max(0,l+delta);
+      setTotal(t=>nl>t?nl:t);
+      return nl;
+    });
+  }
+  function startEdit(e){
+    if(e&&e.stopPropagation) e.stopPropagation();
+    setEditVal(String(left));
+    setEditing(true);
+  }
+  function commitEdit(){
+    let v=parseInt(editVal,10);
+    if(isNaN(v)||v<0) v=0;
+    setLeft(v);
+    setTotal(t=>v>t?v:t);
+    setEditing(false);
+  }
+
   return(
     <div className="rest-wrap">
       <div className="rest-banner">
-        <div className="rest-ring">
+        <div className="rest-ring" onClick={startEdit}>
           <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
             <circle className="ring-bg" cx={SIZE/2} cy={SIZE/2} r={(SIZE-6)/2} strokeWidth="4" fill="none"/>
             <circle className="ring-fg" cx={SIZE/2} cy={SIZE/2} r={(SIZE-6)/2} strokeWidth="4" fill="none"
               strokeDasharray={`${2*Math.PI*(SIZE-6)/2}`}
-              strokeDashoffset={`${2*Math.PI*(SIZE-6)/2*(1-left/duration)}`}/>
+              strokeDashoffset={`${2*Math.PI*(SIZE-6)/2*(1-left/total)}`}/>
           </svg>
-          <div className="rest-ring-num">{left}</div>
+          {!editing&&<div className="rest-ring-num">{left}</div>}
         </div>
         <div className="rest-info">
           <div className="rest-label">Recupero in corso</div>
-          <div className="rest-next">Prossima serie tra {left}s</div>
+          {editing?(
+            <div className="rest-edit-row" onClick={e=>e.stopPropagation()}>
+              <input className="rest-edit-inp" type="number" inputMode="numeric" autoFocus
+                value={editVal} onChange={e=>setEditVal(e.target.value)}
+                onKeyDown={e=>e.key==='Enter'&&commitEdit()}
+                onBlur={commitEdit}/>
+              <span className="rest-edit-unit">sec</span>
+            </div>
+          ):(
+            <div className="rest-next">Prossima serie tra {left}s · <span className="rest-edit-link" onClick={startEdit}>modifica</span></div>
+          )}
         </div>
         <div className="rest-skip" onClick={onDone}>Salta →</div>
+        <div className="rest-controls">
+          <button className="rest-adj-btn" onClick={()=>adjust(-15)}>−15s</button>
+          <button className="rest-adj-btn" onClick={()=>adjust(15)}>+15s</button>
+        </div>
       </div>
     </div>
   );
@@ -818,39 +856,31 @@ function WorkoutModule({meta}){
               })}
             </div>
           </div>
-          <div className="finish-bar">
-            {spToken?.access_token&&(
-              <div className="sp-bar">
-                {spNoDevice?(
-                  <>
-                    <div className="sp-art-ph">♪</div>
-                    <div className="sp-info">
-                      <div className="sp-track" style={{color:'var(--muted)'}}>Nessun dispositivo attivo</div>
-                      <div className="sp-no-device">Apri Spotify e avvia un brano</div>
-                    </div>
-                  </>
-                ):(
-                  <>
-                    {spTrack?.album?.images?.[2]?.url
-                      ?<img className="sp-art" src={spTrack.album.images[2].url} alt=""/>
-                      :<div className="sp-art-ph">♪</div>}
-                    <div className="sp-info">
-                      <div className="sp-track">{spTrack?.name||'—'}</div>
-                      <div className="sp-artist">{spTrack?.artists?.map(a=>a.name).join(', ')||'—'}</div>
-                    </div>
-                    <div className="sp-controls">
-                      <button className="sp-btn" onClick={spPrev}>⏮</button>
-                      <button className="sp-btn play" onClick={spToggle}>{spPlaying?'⏸':'▶'}</button>
-                      <button className="sp-btn" onClick={spNext}>⏭</button>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-            <button className={`finish-btn${pct===100?' on':' off'}`} onClick={pct===100?finishGym:undefined}>
-              {pct===100?'✓ Completa Allenamento':`Completa tutte le serie (${pct}%)`}
-            </button>
-          </div>
+          {(pct===100||(spToken?.access_token&&!spNoDevice))&&(
+            <div className="finish-bar anim">
+              {spToken?.access_token&&!spNoDevice&&(
+                <div className="sp-bar">
+                  {spTrack?.album?.images?.[2]?.url
+                    ?<img className="sp-art" src={spTrack.album.images[2].url} alt=""/>
+                    :<div className="sp-art-ph">♪</div>}
+                  <div className="sp-info">
+                    <div className="sp-track">{spTrack?.name||'—'}</div>
+                    <div className="sp-artist">{spTrack?.artists?.map(a=>a.name).join(', ')||'—'}</div>
+                  </div>
+                  <div className="sp-controls">
+                    <button className="sp-btn" onClick={spPrev}>⏮</button>
+                    <button className="sp-btn play" onClick={spToggle}>{spPlaying?'⏸':'▶'}</button>
+                    <button className="sp-btn" onClick={spNext}>⏭</button>
+                  </div>
+                </div>
+              )}
+              {pct===100&&(
+                <button className="finish-btn on" onClick={finishGym}>
+                  ✓ Completa Allenamento
+                </button>
+              )}
+            </div>
+          )}
 
           {/* COMPLETE OVERLAY */}
           {complete&&(
