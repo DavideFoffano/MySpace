@@ -23,6 +23,11 @@ function RestTimer({endAt,onDone,onAdjust,onSetSeconds}){
   const [editing,setEditing]=useState(false);
   const [editVal,setEditVal]=useState(()=>String(computeLeft()));
   const doneRef=useRef(false);
+  // onDone cambia identità a ogni render del padre (che si aggiorna ogni secondo
+  // per il cronometro): lo tengo in un ref, così l'intervallo non viene
+  // distrutto e ricreato di continuo (era questo a bloccare il numero)
+  const onDoneRef=useRef(onDone);
+  onDoneRef.current=onDone;
 
   useEffect(()=>{
     doneRef.current=false;
@@ -35,10 +40,10 @@ function RestTimer({endAt,onDone,onAdjust,onSetSeconds}){
     const id=setInterval(()=>{
       const l=computeLeft();
       setLeft(l);
-      if(l<=0&&!doneRef.current){doneRef.current=true;onDone();}
-    },1000);
+      if(l<=0&&!doneRef.current){doneRef.current=true;onDoneRef.current();}
+    },250);
     return()=>clearInterval(id);
-  },[endAt,onDone]);
+  },[endAt]);
 
   function startEdit(e){
     if(e&&e.stopPropagation) e.stopPropagation();
