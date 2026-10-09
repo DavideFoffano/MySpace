@@ -390,8 +390,8 @@ async function syncDown(){
   }catch(e){return null;}
 }
 
-/* Chiavi escluse dalla sync globale (device-specific / OAuth token) */
-var SYNC_EXCLUDE_KEYS=['ms_uid','ms_supa','ms_spotify_token','ms_gcal_token','ms_gcal_verifier'];
+/* Chiavi escluse dalla sync globale (device-specific / OAuth token / allenamento in corso) */
+var SYNC_EXCLUDE_KEYS=['ms_uid','ms_supa','ms_spotify_token','ms_gcal_token','ms_gcal_verifier','ms_active_session'];
 
 async function syncAllUp(){
   var sb=getSupabase();

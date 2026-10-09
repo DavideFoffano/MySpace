@@ -15,25 +15,31 @@ function getRpeLabel(rpe){
   return 'Massimale';
 }
 
-function RestTimer({duration,onDone}){
-  const [total,setTotal]=useState(duration);
-  const [left,setLeft]=useState(duration);
-  const [editing,setEditing]=useState(false);
-  const [editVal,setEditVal]=useState(String(duration));
+function RestTimer({endAt,onDone,onAdjust,onSetSeconds}){
   const SIZE=44;
-  useEffect(()=>{
-    if(left<=0){onDone();return;}
-    const id=setTimeout(()=>setLeft(l=>l-1),1000);
-    return()=>clearTimeout(id);
-  },[left]);
+  function computeLeft(){ return Math.max(0,Math.ceil((endAt-Date.now())/1000)); }
+  const [left,setLeft]=useState(computeLeft);
+  const [totalSeen,setTotalSeen]=useState(()=>Math.max(1,computeLeft()));
+  const [editing,setEditing]=useState(false);
+  const [editVal,setEditVal]=useState(()=>String(computeLeft()));
+  const doneRef=useRef(false);
 
-  function adjust(delta){
-    setLeft(l=>{
-      const nl=Math.max(0,l+delta);
-      setTotal(t=>nl>t?nl:t);
-      return nl;
-    });
-  }
+  useEffect(()=>{
+    doneRef.current=false;
+    const l=computeLeft();
+    setLeft(l);
+    setTotalSeen(t=>Math.max(t,l||1));
+  },[endAt]);
+
+  useEffect(()=>{
+    const id=setInterval(()=>{
+      const l=computeLeft();
+      setLeft(l);
+      if(l<=0&&!doneRef.current){doneRef.current=true;onDone();}
+    },1000);
+    return()=>clearInterval(id);
+  },[endAt,onDone]);
+
   function startEdit(e){
     if(e&&e.stopPropagation) e.stopPropagation();
     setEditVal(String(left));
@@ -42,8 +48,7 @@ function RestTimer({duration,onDone}){
   function commitEdit(){
     let v=parseInt(editVal,10);
     if(isNaN(v)||v<0) v=0;
-    setLeft(v);
-    setTotal(t=>v>t?v:t);
+    onSetSeconds(v);
     setEditing(false);
   }
 
@@ -55,7 +60,7 @@ function RestTimer({duration,onDone}){
             <circle className="ring-bg" cx={SIZE/2} cy={SIZE/2} r={(SIZE-6)/2} strokeWidth="4" fill="none"/>
             <circle className="ring-fg" cx={SIZE/2} cy={SIZE/2} r={(SIZE-6)/2} strokeWidth="4" fill="none"
               strokeDasharray={`${2*Math.PI*(SIZE-6)/2}`}
-              strokeDashoffset={`${2*Math.PI*(SIZE-6)/2*(1-left/total)}`}/>
+              strokeDashoffset={`${2*Math.PI*(SIZE-6)/2*(1-left/totalSeen)}`}/>
           </svg>
           {!editing&&<div className="rest-ring-num">{left}</div>}
         </div>
@@ -75,8 +80,8 @@ function RestTimer({duration,onDone}){
         </div>
         <div className="rest-skip" onClick={onDone}>Salta →</div>
         <div className="rest-controls">
-          <button className="rest-adj-btn" onClick={()=>adjust(-15)}>−15s</button>
-          <button className="rest-adj-btn" onClick={()=>adjust(15)}>+15s</button>
+          <button className="rest-adj-btn" onClick={()=>onAdjust(-15)}>−15s</button>
+          <button className="rest-adj-btn" onClick={()=>onAdjust(15)}>+15s</button>
         </div>
       </div>
     </div>
@@ -286,16 +291,16 @@ function WorkoutModule({meta}){
   const [gymView,setGymView]=useState('home');
   const [activeW,setActiveW]=useState(null);
   const [session,setSession]=useState(null);
-  const [elapsed,setElapsed]=useState(0);
+  const [startedAt,setStartedAt]=useState(null);
+  const [now,setNow]=useState(()=>Date.now());
   const [complete,setComplete]=useState(false);
   const [openEx,setOpenEx]=useState(null);
   const [editModal,setEditModal]=useState(null);
-  const [restActive,setRestActive]=useState(false);
+  const [restEndAt,setRestEndAt]=useState(null);
   const [syncStatus,setSyncStatus]=useState('idle');
   const [supaForm,setSupaForm]=useState(()=>LS.get('ms_supa')||{url:'',key:''});
   const [selectedEx,setSelectedEx]=useState(null);
   const [histTab,setHistTab]=useState('grafici');
-  const timerRef=useRef(null);
 
   // Session post-workout state
   const [sessionNote,setSessionNote]=useState('');
@@ -334,12 +339,50 @@ function WorkoutModule({meta}){
   const [bwNote,setBwNote]=useState('');
 
 
-  /* ── Gym timer ── */
+  /* ── Orologio dell'allenamento: calcolato dal timestamp reale,
+     continua a funzionare anche se il modulo viene smontato (cambio sezione,
+     tasto indietro, chiusura app) e poi rimontato ── */
   useEffect(()=>{
-    if(gymView==='session') timerRef.current=setInterval(()=>setElapsed(e=>e+1),1000);
-    else clearInterval(timerRef.current);
-    return()=>clearInterval(timerRef.current);
-  },[gymView]);
+    if(!(activeW&&session&&!complete)) return;
+    const id=setInterval(()=>setNow(Date.now()),1000);
+    return()=>clearInterval(id);
+  },[activeW,session,complete]);
+
+  const elapsed = startedAt?Math.max(0,Math.floor((now-startedAt)/1000)):0;
+
+  /* ── Ripristina un allenamento in corso (sopravvive a cambio sezione / indietro / chiusura app) ── */
+  useEffect(()=>{
+    const saved=LS.get('ms_active_session');
+    if(saved&&saved.workoutId){
+      const w=workouts.find(x=>x.id===saved.workoutId);
+      if(w){
+        setActiveW(w);
+        setSession({sets:saved.sets||{}});
+        setStartedAt(saved.startedAt||Date.now());
+        setSessionNote(saved.sessionNote||'');
+        setSessionRpe(saved.sessionRpe||null);
+        setRestEndAt(saved.restEndAt||null);
+        setOpenEx(w.exercises[0]?.id||null);
+        setComplete(false);
+        setGymView('session');
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  },[]);
+
+  /* ── Salva continuamente l'allenamento in corso, cosi' non si azzera mai da solo ── */
+  useEffect(()=>{
+    if(activeW&&session&&!complete){
+      LS.set('ms_active_session',{
+        workoutId:activeW.id,
+        sets:session.sets,
+        startedAt,
+        sessionNote,
+        sessionRpe,
+        restEndAt,
+      });
+    }
+  },[activeW,session,sessionNote,sessionRpe,restEndAt,complete,startedAt]);
 
   /* ── Gym sync down ── */
   useEffect(()=>{
@@ -393,6 +436,15 @@ function WorkoutModule({meta}){
 
   /* ── Gym functions ── */
   function startWorkout(w){
+    // Se c'e' gia' lo stesso allenamento in corso, riprendilo invece di azzerarlo
+    if(activeW&&session&&!complete&&activeW.id===w.id){
+      setGymView('session');
+      return;
+    }
+    // Se c'e' un allenamento DIVERSO in corso, chiedi conferma prima di sovrascriverlo
+    if(activeW&&session&&!complete&&activeW.id!==w.id){
+      if(!window.confirm(`Hai già "${activeW.name}" in corso. Iniziare "${w.name}" lo interromperà. Continuare?`)) return;
+    }
     const sets={};
     w.exercises.forEach(ex=>{
       // Usa l'ultimo peso registrato nel weightLog se disponibile, altrimenti il default della scheda
@@ -401,8 +453,8 @@ function WorkoutModule({meta}){
       const startReps=lastLog?.reps??ex.reps;
       sets[ex.id]=Array.from({length:ex.serie},()=>({reps:startReps,peso:startPeso,done:false}));
     });
-    setActiveW(w);setSession({sets});setElapsed(0);setComplete(false);
-    setOpenEx(w.exercises[0]?.id||null);setRestActive(false);
+    setActiveW(w);setSession({sets});setStartedAt(Date.now());setComplete(false);
+    setOpenEx(w.exercises[0]?.id||null);setRestEndAt(null);
     setSessionNote('');setSessionRpe(null);setNewPrs([]);
     setGymView('session');
   }
@@ -411,7 +463,7 @@ function WorkoutModule({meta}){
       const sets={...prev.sets};
       const wasDone=sets[exId][si].done;
       sets[exId]=sets[exId].map((s,i)=>i===si?{...s,done:!s.done}:s);
-      if(!wasDone) setRestActive(true);
+      if(!wasDone) startRest();
       return{...prev,sets};
     });
   }
@@ -422,6 +474,22 @@ function WorkoutModule({meta}){
       return{...prev,sets};
     });
   }
+
+  /* ── Timer di recupero: basato su un orario di fine assoluto,
+     cosi' resta corretto anche se l'app va in background ── */
+  function startRest(){
+    setRestEndAt(Date.now()+(gymSettings.restTime||60)*1000);
+  }
+  function stopRest(){
+    setRestEndAt(null);
+  }
+  function adjustRest(deltaSec){
+    setRestEndAt(prev=>Math.max(Date.now(),(prev||Date.now())+deltaSec*1000));
+  }
+  function setRestSeconds(sec){
+    setRestEndAt(Date.now()+Math.max(0,sec)*1000);
+  }
+
   const totalSets=session?Object.values(session.sets).flat().length:0;
   const doneSets=session?Object.values(session.sets).flat().filter(s=>s.done).length:0;
   const pct=totalSets?Math.round((doneSets/totalSets)*100):0;
@@ -448,9 +516,20 @@ function WorkoutModule({meta}){
     };
     const newHistory=[entry,...history];
     await saveGymAll({history:newHistory,weightLog:newWL});
-    setComplete(true);clearInterval(timerRef.current);
+    LS.set('ms_active_session',null);
+    setComplete(true);
   }
-  function closeComplete(){setComplete(false);setGymView('home');setActiveW(null);setSession(null);}
+  function requestFinish(){
+    if(pct<100){
+      if(!window.confirm('Terminare l\'allenamento adesso? Le serie non ancora completate non verranno conteggiate.')) return;
+    }
+    finishGym();
+  }
+  function closeComplete(){
+    setComplete(false);setGymView('home');setActiveW(null);setSession(null);
+    setStartedAt(null);setRestEndAt(null);setSessionNote('');setSessionRpe(null);
+    LS.set('ms_active_session',null);
+  }
   
   function openEdit(w,i){
     const ex=w.exercises[i];
@@ -677,6 +756,7 @@ function WorkoutModule({meta}){
 
   const syncColor=syncStatus==='ok'?'#d4943a':syncStatus==='syncing'?'#dba042':syncStatus==='err'?'#ff4444':'#333';
   const isInSession=gymView==='session';
+  const hasActiveSession=!!(activeW&&session&&!complete);
   
 
   /* ── Add exercise search filter ── */
@@ -816,7 +896,7 @@ function WorkoutModule({meta}){
               <div className="prog-top"><div className="prog-pct" style={{color:activeW.color}}>{pct}%</div><div className="prog-sub">{doneSets}/{totalSets} serie</div></div>
               <div className="prog-bar"><div className="prog-fill" style={{width:pct+'%',background:activeW.color}}/></div>
             </div>
-            {restActive&&<RestTimer duration={gymSettings.restTime||60} onDone={()=>setRestActive(false)}/>}
+            {restEndAt&&<RestTimer endAt={restEndAt} onDone={stopRest} onAdjust={adjustRest} onSetSeconds={setRestSeconds}/>}
             <div className="ex-list">
               {activeW.exercises.map((ex,i)=>{
                 const exSets=session.sets[ex.id]||[];
@@ -856,31 +936,27 @@ function WorkoutModule({meta}){
               })}
             </div>
           </div>
-          {(pct===100||(spToken?.access_token&&!spNoDevice))&&(
-            <div className="finish-bar anim">
-              {spToken?.access_token&&!spNoDevice&&(
-                <div className="sp-bar">
-                  {spTrack?.album?.images?.[2]?.url
-                    ?<img className="sp-art" src={spTrack.album.images[2].url} alt=""/>
-                    :<div className="sp-art-ph">♪</div>}
-                  <div className="sp-info">
-                    <div className="sp-track">{spTrack?.name||'—'}</div>
-                    <div className="sp-artist">{spTrack?.artists?.map(a=>a.name).join(', ')||'—'}</div>
-                  </div>
-                  <div className="sp-controls">
-                    <button className="sp-btn" onClick={spPrev}>⏮</button>
-                    <button className="sp-btn play" onClick={spToggle}>{spPlaying?'⏸':'▶'}</button>
-                    <button className="sp-btn" onClick={spNext}>⏭</button>
-                  </div>
+          <div className="finish-bar anim">
+            {spToken?.access_token&&!spNoDevice&&(
+              <div className="sp-bar">
+                {spTrack?.album?.images?.[2]?.url
+                  ?<img className="sp-art" src={spTrack.album.images[2].url} alt=""/>
+                  :<div className="sp-art-ph">♪</div>}
+                <div className="sp-info">
+                  <div className="sp-track">{spTrack?.name||'—'}</div>
+                  <div className="sp-artist">{spTrack?.artists?.map(a=>a.name).join(', ')||'—'}</div>
                 </div>
-              )}
-              {pct===100&&(
-                <button className="finish-btn on" onClick={finishGym}>
-                  ✓ Completa Allenamento
-                </button>
-              )}
-            </div>
-          )}
+                <div className="sp-controls">
+                  <button className="sp-btn" onClick={spPrev}>⏮</button>
+                  <button className="sp-btn play" onClick={spToggle}>{spPlaying?'⏸':'▶'}</button>
+                  <button className="sp-btn" onClick={spNext}>⏭</button>
+                </div>
+              </div>
+            )}
+            <button className={`finish-btn${pct===100?' on':' secondary'}`} onClick={requestFinish}>
+              {pct===100?'✓ Completa Allenamento':'Termina allenamento'}
+            </button>
+          </div>
 
           {/* COMPLETE OVERLAY */}
           {complete&&(
@@ -984,6 +1060,16 @@ function WorkoutModule({meta}){
 
             {/* ── HOME ── */}
             {gymView==='home'&&<div className="pad anim">
+              {hasActiveSession&&(
+                <div className="resume-banner" onClick={()=>setGymView('session')}>
+                  <div className="resume-banner-dot"/>
+                  <div className="resume-banner-info">
+                    <div className="resume-banner-title">Allenamento in corso</div>
+                    <div className="resume-banner-sub">{activeW.name} · {fmtTime(elapsed)} · {doneSets}/{totalSets} serie</div>
+                  </div>
+                  <div className="resume-banner-arrow">→</div>
+                </div>
+              )}
               {weeklyStreak>=2&&(
                 <div style={{marginBottom:8}}>
                   <span className="streak-badge">🔥 {weeklyStreak} settimane di fila</span>
@@ -1001,12 +1087,13 @@ function WorkoutModule({meta}){
                 {workouts.map(w=>{
                   const last=history.find(h=>h.workoutId===w.id);
                   const lp=last?Math.round((last.doneSets/last.totalSets)*100):0;
+                  const isActive=hasActiveSession&&activeW.id===w.id;
                   return(
                     <div className="card" key={w.id} onClick={()=>startWorkout(w)}>
                       <div className="card-bar" style={{background:w.color}}/>
                       <div className="card-top">
                         <div><div className="card-name" style={{color:w.color}}>{w.name}</div><div className="card-sub">{w.subtitle}</div></div>
-                        <div className="card-badge" style={{color:w.color,borderColor:w.color+'40',background:w.color+'12'}}>{w.exercises.length} esercizi</div>
+                        <div className="card-badge" style={{color:w.color,borderColor:w.color+'40',background:w.color+'12'}}>{isActive?'In corso':`${w.exercises.length} esercizi`}</div>
                       </div>
                       {last&&<>
                         <div className="card-prog"><div className="card-prog-fill" style={{width:lp+'%',background:w.color}}/></div>
