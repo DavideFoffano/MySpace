@@ -216,15 +216,18 @@ input[type=number]{-moz-appearance:textfield}
   .color-dot{width:28px;height:28px;border-radius:50%;cursor:pointer;transition:transform .15s;border:2px solid transparent;}
   .color-dot.sel{transform:scale(1.2);border-color:var(--text);}
 
-  /* ── WORKOUT EDITOR ── */
-  .we-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;margin-bottom:10px;overflow:hidden;}
-  .we-hdr{padding:14px 16px;display:flex;align-items:center;gap:10px;}
-  .we-color-bar{width:4px;height:36px;border-radius:2px;flex-shrink:0;}
-  .we-name{font-family:var(--font);font-size:18px;font-weight:500;text-transform:uppercase;flex:1;}
-  .we-sub{font-size:11px;color:var(--muted);margin-top:2px;}
-  .we-actions{display:flex;gap:6px;flex-shrink:0;}
-  .we-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--surface2);color:var(--muted);font-family:var(--font);font-size:12px;font-weight:400;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+  /* ── WORKOUT EDITOR / LISTA SCHEDE (mobile-safe) ── */
+  .we-card{display:flex;align-items:stretch;background:var(--surface);border:1px solid var(--border);border-radius:16px;margin-bottom:10px;overflow:hidden;}
+  .we-main{flex:1;min-width:0;display:flex;flex-direction:column;}
+  .we-hdr{padding:14px 14px 10px;display:flex;align-items:center;gap:10px;min-width:0;}
+  .we-color-bar{width:4px;align-self:stretch;min-height:36px;border-radius:2px;flex-shrink:0;}
+  .we-name{font-family:var(--font);font-size:18px;font-weight:500;text-transform:uppercase;line-height:1.15;overflow-wrap:anywhere;}
+  .we-sub{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4;}
+  .we-actions{display:flex;gap:8px;padding:0 14px 14px;}
+  .we-btn{padding:9px 12px;border-radius:10px;border:1px solid var(--border2);background:var(--surface2);color:var(--muted);font-family:var(--font);font-size:12px;font-weight:400;letter-spacing:0.08em;text-transform:uppercase;cursor:pointer;white-space:nowrap;-webkit-tap-highlight-color:transparent;}
   .we-btn:active{opacity:.7;}
+  .we-btn-main{flex:1;}
+  .we-btn-icon{flex:0 0 48px;padding:9px 0;}
 
   /* ── EXERCISE EDITOR ── */
   .exed-item{background:var(--surface2);border:1px solid var(--border2);border-radius:10px;padding:10px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;}
@@ -1037,8 +1040,7 @@ input[type=number]{-moz-appearance:textfield}
   .exed-note::placeholder{color:var(--faint);}
   .exed-note:focus{border-color:var(--border2);}
 
-  /* ── ORDINE SCHEDE ── */
-  .we-card{display:flex;align-items:stretch;}
+  /* ── ORDINE SCHEDE (frecce ▲▼) ── */
   .we-reorder{display:flex;flex-direction:column;justify-content:center;gap:4px;padding:12px 8px;border-right:1px solid var(--border);}
   .we-reorder-btn{background:none;border:none;color:var(--faint);font-size:13px;cursor:pointer;padding:2px 4px;line-height:1;-webkit-tap-highlight-color:transparent;}
   .we-reorder-btn:active{color:var(--acc);}

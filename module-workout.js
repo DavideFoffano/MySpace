@@ -829,8 +829,8 @@ function WorkoutModule({meta}){
               {wObj.exercises.map((ex,i)=>(
                 <div className="exed-item" key={ex.id}>
                   <div style={{display:'flex',flexDirection:'column',gap:2,marginRight:2}}>
-                    <button style={{background:'none',border:'none',color:i===0?'#2a2a2a':'#666',fontSize:14,cursor:i===0?'default':'pointer',padding:'2px',lineHeight:1}} onClick={()=>moveExercise(ex.id,-1)} style={{transform:'rotate(90deg)'}}>↑</button>
-                    <button style={{background:'none',border:'none',color:i===wObj.exercises.length-1?'#2a2a2a':'#666',fontSize:14,cursor:i===wObj.exercises.length-1?'default':'pointer',padding:'2px',lineHeight:1}} onClick={()=>moveExercise(ex.id,1)} style={{transform:'rotate(90deg)'}}>↓</button>
+                    <button style={{background:'none',border:'none',color:i===0?'#2a2a2a':'#666',fontSize:14,cursor:i===0?'default':'pointer',padding:'2px',lineHeight:1}} onClick={()=>moveExercise(ex.id,-1)}>↑</button>
+                    <button style={{background:'none',border:'none',color:i===wObj.exercises.length-1?'#2a2a2a':'#666',fontSize:14,cursor:i===wObj.exercises.length-1?'default':'pointer',padding:'2px',lineHeight:1}} onClick={()=>moveExercise(ex.id,1)}>↓</button>
                   </div>
                   <div style={{width:22,height:22,borderRadius:6,background:'#222',display:'flex',alignItems:'center',justifyContent:'center',fontFamily:"'Jost',sans-serif",fontSize:11,fontWeight:400,color:'var(--muted)',flexShrink:0}}>{i+1}</div>
                   <div style={{flex:1}}>
@@ -1124,15 +1124,17 @@ function WorkoutModule({meta}){
                     <button className={`we-reorder-btn${wi===0?' dis':''}`} onClick={()=>moveWorkout(w.id,-1)}>▲</button>
                     <button className={`we-reorder-btn${wi===workouts.length-1?' dis':''}`} onClick={()=>moveWorkout(w.id,1)}>▼</button>
                   </div>
-                  <div className="we-hdr" style={{flex:1}}>
-                    <div className="we-color-bar" style={{background:w.color}}/>
-                    <div style={{flex:1}}>
-                      <div className="we-name" style={{color:w.color,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{w.name}</div>
-                      <div className="we-sub">{w.subtitle} · {w.exercises.length} esercizi</div>
+                  <div className="we-main">
+                    <div className="we-hdr">
+                      <div className="we-color-bar" style={{background:w.color}}/>
+                      <div style={{flex:1,minWidth:0}}>
+                        <div className="we-name" style={{color:w.color}}>{w.name}</div>
+                        <div className="we-sub">{w.subtitle} · {w.exercises.length} esercizi</div>
+                      </div>
                     </div>
                     <div className="we-actions">
-                      <button className="we-btn" onClick={()=>setEditingWorkout(w)}>✏️ Modifica</button>
-                      <button className="we-btn" onClick={()=>duplicateWorkout(w)}>📋</button>
+                      <button className="we-btn we-btn-main" onClick={()=>setEditingWorkout(w)}>✏️ Modifica</button>
+                      <button className="we-btn we-btn-icon" onClick={()=>duplicateWorkout(w)}>📋</button>
                     </div>
                   </div>
                 </div>
