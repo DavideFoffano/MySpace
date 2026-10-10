@@ -18,7 +18,7 @@
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <link rel="stylesheet" href="styles.css"/>
+  <link rel="stylesheet" href="styles.css?v=20261010a"/>
   <style>
     #splash{
       position:fixed;inset:0;
@@ -32,13 +32,13 @@
 <body>
 <div id="splash"></div>
 <div id="root"></div>
-<script type="text/babel" src="core.js"></script>
-<script type="text/babel" src="module-workout.js"></script>
-<script type="text/babel" src="module-todo.js"></script>
-<script type="text/babel" src="module-expenses.js"></script>
-<script type="text/babel" src="module-notes.js"></script>
-<script type="text/babel" src="module-dashboard.js"></script>
-<script type="text/babel" src="app.js"></script>
+<script type="text/babel" src="core.js?v=20261010a"></script>
+<script type="text/babel" src="module-workout.js?v=20261010a"></script>
+<script type="text/babel" src="module-todo.js?v=20261010a"></script>
+<script type="text/babel" src="module-expenses.js?v=20261010a"></script>
+<script type="text/babel" src="module-notes.js?v=20261010a"></script>
+<script type="text/babel" src="module-dashboard.js?v=20261010a"></script>
+<script type="text/babel" src="app.js?v=20261010a"></script>
 <script>
   if('serviceWorker' in navigator){
     window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});
