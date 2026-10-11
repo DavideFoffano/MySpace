@@ -361,8 +361,33 @@ const NOTE_GROUP_COLORS=['#9b8fc2','#6dbb8a','#a8c26b','#c97a4a','#d4a84b','#7ab
 ═══════════════════════════════════════════ */
 const LS = {
   get:(k,fb=null)=>{try{const v=localStorage.getItem(k);return v?JSON.parse(v):fb}catch{return fb}},
-  set:(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch{}},
+  set:(k,v)=>{
+    try{localStorage.setItem(k,JSON.stringify(v))}catch{}
+    if((k.indexOf('ms_')===0||['workouts','history','weightLog','settings'].indexOf(k)>=0)
+       && SYNC_EXCLUDE_KEYS.indexOf(k)<0 && k!=='ms_module') scheduleSyncUp();
+  },
 };
+
+/* Auto-upload con debounce: parte 3s dopo l'ultima modifica.
+   _syncReady diventa true solo dopo il primo syncAllDown all'avvio (vedi app.js),
+   cosi' non si sovrascrive mai il cloud con dati locali vecchi. */
+var _syncReady=false;
+var _syncTimer=null;
+function scheduleSyncUp(){
+  clearTimeout(_syncTimer);
+  _syncTimer=setTimeout(autoSyncUp,3000);
+}
+async function autoSyncUp(){
+  var sb=getSupabase();
+  if(!sb||!_syncReady) return;
+  try{
+    var res=await sb.from('ms_sync_data').select('updated_at').eq('user_id',getUserId()).single();
+    var lastDown=LS.get('ms_last_sync_down');
+    // se il cloud e' piu' nuovo di cio' che questo dispositivo ha scaricato, non sovrascrivere
+    if(res.data&&res.data.updated_at&&(!lastDown||new Date(res.data.updated_at)>new Date(lastDown))) return;
+  }catch(e){}
+  syncAllUp();
+}
 function getUserId(){
   let id=LS.get('ms_uid');
   if(!id){id='user_'+Math.random().toString(36).slice(2,10);LS.set('ms_uid',id);}
@@ -391,7 +416,7 @@ async function syncDown(){
 }
 
 /* Chiavi escluse dalla sync globale (device-specific / OAuth token / allenamento in corso) */
-var SYNC_EXCLUDE_KEYS=['ms_uid','ms_supa','ms_spotify_token','ms_gcal_token','ms_gcal_verifier','ms_active_session'];
+var SYNC_EXCLUDE_KEYS=['ms_uid','ms_supa','ms_spotify_token','ms_gcal_token','ms_gcal_verifier','ms_active_session','ms_last_sync','ms_last_sync_down'];
 
 async function syncAllUp(){
   var sb=getSupabase();
@@ -407,9 +432,12 @@ async function syncAllUp(){
     }
   }
   try{
-    await sb.from('ms_sync_data').upsert({user_id:getUserId(),data:data,updated_at:new Date().toISOString()},{onConflict:'user_id'});
     var now=new Date().toISOString();
-    LS.set('ms_last_sync',now);
+    var up=await sb.from('ms_sync_data').upsert({user_id:getUserId(),data:data,updated_at:now},{onConflict:'user_id'});
+    if(up&&up.error) return {ok:false,err:up.error.message};
+    // scritture dirette (LS.set innescherebbe un altro upload)
+    localStorage.setItem('ms_last_sync',JSON.stringify(now));
+    localStorage.setItem('ms_last_sync_down',JSON.stringify(now));
     return {ok:true,at:now};
   }catch(e){ return {ok:false,err:e.message}; }
 }
@@ -422,14 +450,14 @@ async function syncAllDown(){
     if(res.error||!res.data) return {ok:false,err:'no_data'};
     var remoteAt=res.data.updated_at;
     var lastDown=LS.get('ms_last_sync_down');
-    if(lastDown&&lastDown>=remoteAt) return {ok:true,fresh:false};
+    if(lastDown&&new Date(lastDown)>=new Date(remoteAt)) return {ok:true,fresh:false};
     var remote=res.data.data||{};
     Object.keys(remote).forEach(function(k){
       if(SYNC_EXCLUDE_KEYS.indexOf(k)>=0) return;
-      LS.set(k,remote[k]);
+      try{ localStorage.setItem(k,JSON.stringify(remote[k])); }catch(e){}
     });
-    LS.set('ms_last_sync_down',remoteAt);
-    LS.set('ms_last_sync',new Date().toISOString());
+    localStorage.setItem('ms_last_sync_down',JSON.stringify(remoteAt));
+    localStorage.setItem('ms_last_sync',JSON.stringify(new Date().toISOString()));
     return {ok:true,fresh:true,at:remoteAt};
   }catch(e){ return {ok:false,err:e.message}; }
 }

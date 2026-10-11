@@ -302,8 +302,6 @@ function WorkoutModule({meta}){
   const [openEx,setOpenEx]=useState(null);
   const [editModal,setEditModal]=useState(null);
   const [restEndAt,setRestEndAt]=useState(null);
-  const [syncStatus,setSyncStatus]=useState('idle');
-  const [supaForm,setSupaForm]=useState(()=>LS.get('ms_supa')||{url:'',key:''});
   const [selectedEx,setSelectedEx]=useState(null);
   const [histTab,setHistTab]=useState('grafici');
 
@@ -403,30 +401,14 @@ function WorkoutModule({meta}){
       })();}
       else window.history.replaceState({},'',window.location.pathname);
     }
-    // Gym sync
-    (async()=>{
-      setSyncStatus('syncing');
-      const remote=await syncDown();
-      if(remote){
-        if(remote.workouts) setWorkouts(remote.workouts);
-        if(remote.history) setHistory(remote.history);
-        if(remote.weightLog) setWeightLog(remote.weightLog);
-        if(remote.settings) setGymSettings(remote.settings);
-      }
-      setSyncStatus(remote?'ok':'idle');
-    })();
   },[]);
 
   const saveGymAll=useCallback(async(patch)=>{
-    const next={workouts,history,weightLog,settings:gymSettings,...patch};
     if(patch.workouts){setWorkouts(patch.workouts);LS.set('workouts',patch.workouts);}
     if(patch.history){setHistory(patch.history);LS.set('history',patch.history);}
     if(patch.weightLog){setWeightLog(patch.weightLog);LS.set('weightLog',patch.weightLog);}
     if(patch.settings){setGymSettings(patch.settings);LS.set('settings',patch.settings);}
-    setSyncStatus('syncing');
-    await syncUp(next);
-    setSyncStatus('ok');
-  },[workouts,history,weightLog,gymSettings]);
+  },[]);
 
   /* ── PR computation ── */
   const personalRecords=useMemo(()=>{
@@ -627,10 +609,6 @@ function WorkoutModule({meta}){
     setEditingWorkout({...editingWorkout,exercises:exArr});
   }
 
-  async function saveSupaSettings(){
-    supaClient=null;LS.set('ms_supa',supaForm);setSyncStatus('syncing');
-    const remote=await syncDown();setSyncStatus(remote?'ok':'err');
-  }
 
   /* ── Spotify Connect functions ── */
   async function spGetToken(){
@@ -759,7 +737,6 @@ function WorkoutModule({meta}){
   },[workouts,weightLog]);
 
 
-  const syncColor=syncStatus==='ok'?'#d4943a':syncStatus==='syncing'?'#dba042':syncStatus==='err'?'#ff4444':'#333';
   const isInSession=gymView==='session';
   const hasActiveSession=!!(activeW&&session&&!complete);
   
@@ -1052,7 +1029,6 @@ function WorkoutModule({meta}){
             <div className="hdr">
               <div className="logo">MY<span>WORKOUT</span></div>
               <div className="hdr-right">
-                <div className="sync-dot" style={{background:syncColor}}/>
                 <div className="hdr-date">{today}</div>
               </div>
             </div>
@@ -1519,12 +1495,7 @@ function WorkoutModule({meta}){
 
               <div className="settings-section">
                 <div className="settings-title">☁️ Sincronizzazione</div>
-                <div className="s-lbl" style={{marginBottom:4}}>Il tuo ID dispositivo</div>
-                <div className="s-uid">{getUserId()}</div>
-                <div className="s-hint" style={{marginBottom:14}}>Copia questo ID sull'altro dispositivo per sincronizzare.</div>
-                <div className="s-row"><div className="s-lbl">Supabase URL</div><input className="s-inp" placeholder="https://xxx.supabase.co" value={supaForm.url} onChange={e=>setSupaForm(f=>({...f,url:e.target.value}))}/></div>
-                <div className="s-row"><div className="s-lbl">Anon Key</div><input className="s-inp" placeholder="eyJ..." value={supaForm.key} onChange={e=>setSupaForm(f=>({...f,key:e.target.value}))}/></div>
-                <button className="s-btn" onClick={saveSupaSettings}>{syncStatus==='syncing'?'Connessione..':syncStatus==='ok'?'✓ Connesso':syncStatus==='err'?'⚠ Errore — Riprova':'Salva e Connetti'}</button>
+                <div className="s-hint">La sincronizzazione si gestisce dalla Home (ID dispositivo, Supabase, Carica/Scarica). Le modifiche vengono caricate in automatico.</div>
               </div>
             </div>}
 

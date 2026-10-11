@@ -14,7 +14,9 @@ function App(){
       var r=await syncAllDown();
       if(r&&r.ok&&r.fresh){
         setTimeout(function(){window.location.reload();},300);
+        return;
       }
+      _syncReady=true;
     })();
   },[]);
 
