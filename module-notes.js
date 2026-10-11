@@ -247,6 +247,24 @@ function htmlToMarkdown(html){
     .trim();
 }
 
+/* ── Anteprima testuale (per card e ricerca) ──
+   Converte l'HTML dell'editor WYSIWYG in testo semplice con a capo.
+   Usa DOMParser: non esegue script né carica risorse. */
+function notePreview(html){
+  if(!html) return '';
+  var s=String(html)
+    .replace(/<\/(div|p|li|h1|h2|h3|ul|ol)>/gi,'\n')
+    .replace(/<br\s*\/?>/gi,'\n')
+    .replace(/<hr[^>]*>/gi,'\n');
+  var doc=new DOMParser().parseFromString(s,'text/html');
+  var text=doc.body.textContent||'';
+  return text
+    .replace(/\u00a0/g,' ')
+    .replace(/[ \t]+/g,' ')
+    .replace(/\n\s*\n+/g,'\n')
+    .trim();
+}
+
 function NotesModule({meta}){
   /* ── Notes state ── */
   const [notes,setNotes]=useState(()=>LS.get('ms_notes')||[]);
@@ -372,7 +390,7 @@ function NotesModule({meta}){
   const filteredNotes=useMemo(()=>{
     let arr=notes.filter(n=>{
       const mG=noteGroupFilter==='all'||(noteGroupFilter==='nogroup'?!n.group:n.group===noteGroupFilter);
-      const mS=!noteSearch.trim()||n.title.toLowerCase().includes(noteSearch.toLowerCase())||n.content.toLowerCase().includes(noteSearch.toLowerCase());
+      const mS=!noteSearch.trim()||n.title.toLowerCase().includes(noteSearch.toLowerCase())||notePreview(n.content).toLowerCase().includes(noteSearch.toLowerCase());
       return mG&&mS;
     });
     if(noteSort==='date_asc') arr=arr.slice().sort(function(a,b){
@@ -1387,7 +1405,7 @@ function NotesModule({meta}){
                         {n.pinned&&<div className="note-card-pin"><Icon name='pin' size={12} color={meta.color}/></div>}
 
                         <div className="note-card-title">{n.title||'Senza titolo'}</div>
-                        <div className="note-card-preview">{n.content}</div>
+                        <div className="note-card-preview" style={{whiteSpace:'pre-line'}}>{notePreview(n.content)}</div>
                         {grp&&<div className="note-card-group" style={{color:grp.color}}>● {grp.name}</div>}
                         <div className="note-card-date">{fmtDate(n.date)}</div>
                       </div>
