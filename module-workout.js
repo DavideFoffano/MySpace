@@ -1493,10 +1493,6 @@ function WorkoutModule({meta}){
                 )}
               </div>
 
-              <div className="settings-section">
-                <div className="settings-title">☁️ Sincronizzazione</div>
-                <div className="s-hint">La sincronizzazione si gestisce dalla Home (ID dispositivo, Supabase, Carica/Scarica). Le modifiche vengono caricate in automatico.</div>
-              </div>
             </div>}
 
             {/* ── SKILLS / CALISTENIA ── */}
