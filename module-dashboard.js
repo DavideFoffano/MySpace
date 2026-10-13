@@ -115,7 +115,7 @@ function DashSyncCard(){
       setStatusMsg('Dati caricati su Supabase');
     } else {
       setSyncStatus('error');
-      setStatusMsg(r.err==='not_configured'?'Supabase non configurato':'Errore di connessione');
+      setStatusMsg(r.err==='not_configured'?'Supabase non configurato':'Errore: '+r.err);
     }
   }
 
@@ -137,7 +137,7 @@ function DashSyncCard(){
       setSyncStatus('error');
       if(r.err==='not_configured') setStatusMsg('Supabase non configurato');
       else if(r.err==='no_data') setStatusMsg('Nessun dato remoto trovato');
-      else setStatusMsg('Errore di connessione');
+      else setStatusMsg('Errore: '+r.err);
     }
   }
 
